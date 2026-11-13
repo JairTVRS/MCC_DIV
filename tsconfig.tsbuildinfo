@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/version.ts","./src/auth/Sessao.tsx","./src/layout/Casca.tsx","./src/layout/Marca.tsx","./src/lib/icones.tsx","./src/lib/supabase.ts","./src/lib/tema.ts","./src/lib/tipos.ts","./src/pages/Acesso.tsx","./src/pages/Entrar.tsx"],"version":"5.6.3"}
