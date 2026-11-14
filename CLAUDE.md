@@ -47,6 +47,9 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 
 - **v0.2.2** (ícone da aba enviado à parte: `configuracoes.favicon_proprio`, migração 006). **v0.2.1** (correção do contador online). **v0.2.0** — Etapa 2 concluída: Configurações (nome/logo com ícone da aba gerado, formas de pagamento, lixeira), Meu perfil e Trocar foto com recorte, contador de usuários online ao lado da versão, página `/privacidade`.
 - Telas Agenda, Lista, Pessoas e Usuários ainda são "em construção".
+- Migrações 001 a 006 aplicadas no Supabase. Testado no localhost: Configurações (nome e logo salvos), contador online, página de privacidade.
+- **Onde paramos (13/11/2026):** falta o Jair enviar o ícone quadrado da aba (só o globo); depois, Branding no Google Cloud + Publicar app. Próximo passo: apresentar o escopo da etapa 3 para aprovação.
+- Servidor local: o Claude sobe e mantém o `npm run dev` na porta 5173 (a 5174 quebra o login Google).
 
 ## Próximas etapas (plano v1.8, com os ajustes do Jair)
 
