@@ -4,8 +4,13 @@ import { Icone } from '../lib/icones';
 import { supabase } from '../lib/supabase';
 import { aplicarTema, temaEfetivo } from '../lib/tema';
 import type { Modulo, VersaoApp } from '../lib/tipos';
+import { Configuracoes } from '../pages/configuracoes/Configuracoes';
 import { APP_VERSION } from '../version';
+import { Avatar, fotoDe } from './Avatar';
 import { Marca } from './Marca';
+import { MeuPerfil } from './MeuPerfil';
+import { Online, useOnline } from './Online';
+import { TrocarFoto } from './TrocarFoto';
 
 type Pagina = 'agenda' | 'lista' | 'pessoas' | 'usuarios' | 'configuracoes';
 
@@ -13,24 +18,26 @@ const PAGINAS: { id: Pagina; titulo: string; icone: string; modulo: Modulo; etap
   { id: 'agenda', titulo: 'Agenda', icone: 'cal', modulo: 'reservas', etapa: 'Etapas 4 a 6', descricao: 'Visões de mês, semana e dia, com arrastar e soltar e bloqueio de conflito.' },
   { id: 'lista', titulo: 'Lista / Relatório', icone: 'list', modulo: 'reservas', etapa: 'Etapa 10', descricao: 'Tabela com filtros, colunas de auditoria e exportação.' },
   { id: 'pessoas', titulo: 'Pessoas', icone: 'people', modulo: 'pessoas', etapa: 'Etapa 4', descricao: 'Cadastro de locatários e locadores.' },
-  { id: 'usuarios', titulo: 'Usuários e Perfis', icone: 'shield', modulo: 'usuarios', etapa: 'Etapa 3', descricao: 'Aprovação de acesso, status ativo/inativo, perfis e permissões.' },
+  { id: 'usuarios', titulo: 'Usuários e Grupos', icone: 'shield', modulo: 'usuarios', etapa: 'Etapa 3', descricao: 'Lista de espera, aprovação de acesso, status ativo/inativo, grupos e árvore de permissões.' },
 ];
-
-const CONFIG = { id: 'configuracoes' as const, titulo: 'Configurações', etapa: 'Etapa 2', descricao: 'Nome e logo do app, formas de pagamento e lixeira de exclusões.' };
 
 function paginaDaUrl(): Pagina {
   const h = window.location.hash.replace('#', '');
   return (['agenda', 'lista', 'pessoas', 'usuarios', 'configuracoes'] as string[]).includes(h) ? (h as Pagina) : 'agenda';
 }
 
+type Janela = 'perfil' | 'foto' | null;
+
 export function Casca() {
   const { usuario, config, pode, sair, atualizarUsuario } = useSessao();
   const [pagina, setPagina] = useState<Pagina>(paginaDaUrl);
   const [menuAberto, setMenuAberto] = useState(false);
   const [avatarAberto, setAvatarAberto] = useState(false);
+  const [janela, setJanela] = useState<Janela>(null);
   const [novidades, setNovidades] = useState<VersaoApp[] | null>(null);
   const [tema, setTema] = useState(temaEfetivo());
   const avatarRef = useRef<HTMLButtonElement>(null);
+  const online = useOnline(usuario);
 
   useEffect(() => {
     const f = () => setPagina(paginaDaUrl());
@@ -43,8 +50,19 @@ export function Casca() {
     if (usuario && usuario.ultima_versao_vista !== APP_VERSION) void abrirNovidades();
   }, [usuario?.id]);
 
+  // Esc fecha o que estiver aberto por cima.
+  useEffect(() => {
+    const f = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setAvatarAberto(false);
+      setMenuAberto(false);
+    };
+    window.addEventListener('keydown', f);
+    return () => window.removeEventListener('keydown', f);
+  }, []);
+
   async function abrirNovidades() {
-    const { data } = await supabase.from('versoes_app').select('numero, data_publicacao, itens').order('data_publicacao', { ascending: false });
+    const { data } = await supabase.from('versoes_app').select('numero, data_publicacao, itens').order('data_publicacao', { ascending: false }).order('numero', { ascending: false });
     setNovidades((data ?? []) as VersaoApp[]);
   }
   function fecharNovidades() {
@@ -64,13 +82,19 @@ export function Casca() {
     void atualizarUsuario({ tema_preferido: novo });
   }
 
+  function abrirJanela(j: Janela) {
+    setAvatarAberto(false);
+    setJanela(j);
+  }
+
   if (!usuario) return null;
   const visiveis = PAGINAS.filter((p) => pode(p.modulo, 'visualizar'));
-  const atual = pagina === 'configuracoes' ? CONFIG : PAGINAS.find((p) => p.id === pagina) ?? PAGINAS[0];
-  const permitido = pagina === 'configuracoes' ? pode('configuracoes', 'visualizar') : visiveis.some((p) => p.id === atual.id);
-  const foto = usuario.usar_foto_upload && usuario.foto_upload ? usuario.foto_upload : usuario.foto_google;
-  const iniciais = usuario.nome.split(' ').filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase() || '?';
-  const rc = avatarRef.current?.getBoundingClientRect();
+  const emConfig = pagina === 'configuracoes';
+  const atual = PAGINAS.find((p) => p.id === pagina) ?? PAGINAS[0];
+  const permitido = emConfig ? pode('configuracoes', 'visualizar') : visiveis.some((p) => p.id === atual.id);
+  const titulo = !permitido ? 'Agenda' : emConfig ? 'Configurações' : atual.titulo;
+  const foto = fotoDe(usuario);
+  const rc = avatarAberto ? avatarRef.current?.getBoundingClientRect() : undefined;
 
   return (
     <div className="app">
@@ -87,11 +111,20 @@ export function Casca() {
           ))}
         </nav>
         <div className="side-foot">
-          <button className="ver" onClick={() => void abrirNovidades()} title="Ver as novidades desta versão">
-            {APP_VERSION}
-          </button>
+          <div className="esq">
+            <button className="ver" onClick={() => void abrirNovidades()} title="Ver as novidades desta versão">
+              {APP_VERSION}
+            </button>
+            <Online lista={online} euId={usuario.id} />
+          </div>
           {pode('configuracoes', 'visualizar') && (
-            <button className="gear" onClick={() => ir('configuracoes')} title="Configurações do sistema" aria-label="Configurações do sistema">
+            <button
+              className="gear"
+              onClick={() => ir('configuracoes')}
+              title="Configurações do sistema"
+              aria-label="Configurações do sistema"
+              aria-current={emConfig ? 'page' : undefined}
+            >
               <Icone nome="gear" tamanho={20} />
             </button>
           )}
@@ -104,28 +137,30 @@ export function Casca() {
           <button className="ib hamb" onClick={() => setMenuAberto(true)} aria-label="Abrir menu">
             <Icone nome="menu" />
           </button>
-          <h1>{permitido ? atual.titulo : 'Agenda'}</h1>
+          <h1>{titulo}</h1>
           <span className="sp" />
           <button className="ib" onClick={alternarTema} title={tema === 'escuro' ? 'Usar tema claro' : 'Usar tema escuro'} aria-label="Alternar tema">
             <Icone nome={tema === 'escuro' ? 'sun' : 'moon'} />
           </button>
-          <button className="avbtn" ref={avatarRef} onClick={() => setAvatarAberto((v) => !v)} aria-label="Menu do usuário">
-            <span className="av">{foto ? <img src={foto} alt="" referrerPolicy="no-referrer" /> : iniciais}</span>
+          <button className="avbtn" ref={avatarRef} onClick={() => setAvatarAberto((v) => !v)} aria-label="Menu do usuário" aria-expanded={avatarAberto}>
+            <Avatar nome={usuario.nome} foto={foto} />
           </button>
         </header>
 
         <main className="content">
-          {permitido ? (
+          {!permitido ? (
+            <div className="empty-stage">
+              <h2>Sem acesso a esta tela</h2>
+              <p>Seu perfil não tem permissão para ver esta área.</p>
+            </div>
+          ) : emConfig ? (
+            <Configuracoes />
+          ) : (
             <div className="empty-stage">
               <span className="tag">{atual.etapa}</span>
               <h2>{atual.titulo}</h2>
               <p>{atual.descricao}</p>
               <p className="note">Esta tela ainda está em construção. Login, permissões e banco já estão funcionando.</p>
-            </div>
-          ) : (
-            <div className="empty-stage">
-              <h2>Sem acesso a esta tela</h2>
-              <p>Seu perfil não tem permissão para ver esta área.</p>
             </div>
           )}
         </main>
@@ -136,15 +171,21 @@ export function Casca() {
           <div className="scrim clear" onClick={() => setAvatarAberto(false)} />
           <div className="pop" style={{ top: rc.bottom + 8, right: Math.max(12, window.innerWidth - rc.right) }}>
             <div className="who">
-              <span className="av" style={{ width: 44, height: 44 }}>
-                {foto ? <img src={foto} alt="" referrerPolicy="no-referrer" /> : iniciais}
-              </span>
+              <Avatar nome={usuario.nome} foto={foto} tamanho={44} />
               <div>
                 <strong>{usuario.nome}</strong>
                 <span className="note">{usuario.email}</span>
               </div>
             </div>
             <div className="menu">
+              <button onClick={() => abrirJanela('perfil')}>
+                <Icone nome="user" />
+                Meu perfil
+              </button>
+              <button onClick={() => abrirJanela('foto')}>
+                <Icone nome="camera" />
+                Trocar foto
+              </button>
               <button onClick={() => void sair()}>
                 <Icone nome="out" />
                 Sair
@@ -153,6 +194,9 @@ export function Casca() {
           </div>
         </>
       )}
+
+      {janela === 'perfil' && <MeuPerfil onFechar={() => setJanela(null)} onTrocarFoto={() => setJanela('foto')} />}
+      {janela === 'foto' && <TrocarFoto onFechar={() => setJanela(null)} />}
 
       {novidades && (
         <>

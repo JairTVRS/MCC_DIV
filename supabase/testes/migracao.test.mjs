@@ -3,10 +3,13 @@ import { PGlite } from '@electric-sql/pglite';
 import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
 import fs from 'node:fs';
 const db = new PGlite({ extensions: { btree_gist } });
-// Roda a migração num Postgres em memória (PGlite) e confere as regras do plano v1.8.
+// Roda todas as migrações, em ordem, num Postgres em memória (PGlite) e confere as regras do plano v1.8.
+// A migração do pg_cron fica de fora (a extensão não existe no PGlite).
 // Uso: npm run test:db
-const arquivo = process.argv[2] ?? new URL('../migrations/20261112000100_v0_1_0_estrutura.sql', import.meta.url);
-const migr = fs.readFileSync(arquivo, 'utf8');
+const pasta = new URL('../migrations/', import.meta.url);
+const migracoes = fs.readdirSync(pasta).filter((f) => f.endsWith('.sql')).sort()
+  .map((f) => ({ f, sql: fs.readFileSync(new URL(f, pasta), 'utf8') }))
+  .filter((m) => !/create extension if not exists pg_cron/i.test(m.sql));
 await db.exec(`
 create role anon nologin; create role authenticated nologin;
 create schema auth;
@@ -23,8 +26,10 @@ alter default privileges in schema public grant all on tables to anon, authentic
 alter default privileges in schema public grant all on sequences to anon, authenticated;
 alter default privileges in schema public grant execute on functions to anon, authenticated;
 `);
-await db.exec(migr);
-console.log('MIGRACAO OK');
+for (const m of migracoes) {
+  try { await db.exec(m.sql); } catch (e) { console.error(`ERRO NA MIGRACAO ${m.f}: ${e.message}`); process.exit(1); }
+  console.log(`MIGRACAO OK: ${m.f}`);
+}
 const A='00000000-0000-0000-0000-00000000000a', B='00000000-0000-0000-0000-00000000000b', C='00000000-0000-0000-0000-00000000000c';
 let falhas=0;
 const ok=(c,m)=>{console.log((c?'  ✓ ':'  ✗ ')+m); if(!c) falhas++;};
@@ -139,6 +144,62 @@ await as(B,`update notificacoes set lida=true where id='${nt.id}'`);
 ok((await su(`select lida_em from notificacoes where id=$1`,[nt.id]))[0].lida_em!==null,'marcar como lida registra a hora');
 ok(!!await erro(()=>as(B,`update notificacoes set tipo='atraso' where id='${nt.id}'`)),'só dá para marcar como lida');
 ok((await as(A,`select * from notificacoes where usuario_id='${B}'`)).length===0,'ninguém lê notificações dos outros');
+
+console.log('10. Usuários: nome, foto e log (v0.2.0)');
+ok(!!await erro(()=>as(B,`update usuarios set nome='Outro Nome' where id='${B}'`)),'usuário não altera o próprio nome');
+await as(A,`update usuarios set nome='  Operador Renomeado ' where id='${B}'`);
+ok((await su(`select nome from usuarios where id=$1`,[B]))[0].nome==='Operador Renomeado','administrador altera o nome (sem espaços nas pontas)');
+ok(!!await erro(()=>as(B,`update usuarios set foto_upload='http://outro.site/x.png', usar_foto_upload=true where id='${B}'`)),'foto fora da própria pasta é recusada');
+ok(!!await erro(()=>as(B,`update usuarios set foto_upload='https://p.supabase.co/storage/v1/object/public/avatares/${A}/f.webp' where id='${B}'`)),'foto na pasta de outro usuário é recusada');
+await as(B,`update usuarios set foto_upload='https://p.supabase.co/storage/v1/object/public/avatares/${B}/f.webp', usar_foto_upload=true where id='${B}'`);
+ok((await su(`select usar_foto_upload from usuarios where id=$1`,[B]))[0].usar_foto_upload===true,'usuário troca a própria foto');
+await as(B,`update usuarios set foto_upload=null, usar_foto_upload=true where id='${B}'`);
+ok((await su(`select usar_foto_upload from usuarios where id=$1`,[B]))[0].usar_foto_upload===false,'sem foto enviada, volta para a foto do Google');
+await as(B,`update usuarios set tema_preferido='claro', ultima_versao_vista='v0.2.0' where id='${B}'`);
+ok((await su(`select * from log_eventos where tabela='usuarios' and campo in ('tema_preferido','ultima_versao_vista')`)).length===0,'trocar tema e ver novidades não entram no log');
+ok((await su(`select * from log_eventos where tabela='usuarios' and campo='foto_upload'`)).length>0,'troca de foto entra no log');
+
+console.log('11. Configurações e formas de pagamento (v0.2.0)');
+await as(B,`update configuracoes set nome_app='Hack' where id=1`);
+ok((await su(`select nome_app from configuracoes`))[0].nome_app===null,'operador não altera o nome do app');
+await as(A,`update configuracoes set nome_app='  Casa de Eventos  ' where id=1`);
+ok((await su(`select nome_app from configuracoes`))[0].nome_app==='Casa de Eventos','administrador altera o nome do app (sem espaços nas pontas)');
+ok(!!await erro(()=>as(A,`update configuracoes set logo_claro='http://outro.site/logo.png' where id=1`)),'logo fora do bucket "marca" é recusado');
+await as(A,`update configuracoes set logo_claro='https://p.supabase.co/storage/v1/object/public/marca/logo.png' where id=1`);
+ok((await su(`select logo_claro from configuracoes`))[0].logo_claro.endsWith('/marca/logo.png'),'logo do bucket "marca" é aceito');
+ok((await su(`select * from log_eventos where tabela='configuracoes' and campo='nome_app'`)).length===1,'alteração das configurações entra no log');
+ok(!!await erro(()=>as(B,`insert into formas_pagamento(nome,ordem) values('Cheque',7)`)),'operador não inclui forma de pagamento');
+ok(!!await erro(()=>as(A,`insert into formas_pagamento(nome,ordem) values(' pix ',7)`)),'forma de pagamento repetida (maiúsculas/espaços) é recusada');
+ok(!!await erro(()=>as(A,`insert into formas_pagamento(nome,ordem) values('   ',7)`)),'forma de pagamento em branco é recusada');
+const [fc]=await as(A,`insert into formas_pagamento(nome,ordem) values('Cheque',7) returning id`);
+await as(A,`update formas_pagamento set nome='Cheque pré', ativo=false where id='${fc.id}'`);
+ok((await su(`select nome,ativo from formas_pagamento where id=$1`,[fc.id])).every(f=>f.nome==='Cheque pré'&&f.ativo===false),'administrador renomeia e desativa forma de pagamento');
+ok(!!await erro(()=>as(A,`delete from formas_pagamento where id='${fc.id}'`)),'forma de pagamento não é apagada (só desativada)');
+
+console.log('12. Lixeira (v0.2.0)');
+const [pz]=await as(A,`insert into pessoas(nome,tipo) values('Pessoa Excluída','locatario') returning id`);
+await as(A,`select excluir_registro('pessoas','${pz.id}')`);
+await as(C,`select excluir_registro('locacoes','${r2.id}')`);
+const [p1]=await su(`select id from parcelas where locacao_id=$1 and numero=1`,[r1.id]);
+await as(A,`select excluir_registro('parcelas','${p1.id}')`);
+ok(!!await erro(()=>as(C,`select * from listar_lixeira()`)),'gestor não vê a lixeira');
+ok(!!await erro(()=>as(A,`select * from texto_reserva('${r2.id}')`)),'função interna da lixeira não é chamável pelo app');
+let lx=await as(A,`select * from listar_lixeira()`);
+const itR2=lx.find(i=>i.id===r2.id);
+ok(!!itR2&&/Mariana/.test(itR2.descricao)&&/leva junto 1 parcela, 1 comentário/.test(itR2.detalhe)&&itR2.excluido_por_nome==='gestor','reserva aparece com o que leva junto e quem excluiu');
+ok(!lx.some(i=>i.tabela!=='locacoes'&&/21\/11\/2026/.test(i.detalhe)),'parcelas e comentários da reserva excluída não aparecem soltos');
+ok(lx.some(i=>i.tabela==='pessoas'&&i.descricao==='Pessoa Excluída'),'pessoa excluída aparece');
+ok(lx.some(i=>i.tabela==='parcelas'&&/Parcela 1 · R\$ 1\.800,00/.test(i.descricao)),'parcela excluída sozinha aparece com valor em reais');
+const [pr2]=await su(`select id from parcelas where locacao_id=$1`,[r2.id]);
+e=await erro(()=>as(A,`select restaurar_registro('parcelas','${pr2.id}')`));
+ok(!!e&&/Restaure a reserva primeiro/.test(e),'item de reserva na lixeira só volta junto com a reserva');
+await as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim,status_compromisso) values($1,$2,'2026-11-21 20:00-03','2026-11-21 22:00-03','pre_reserva')`,[loc1.id,lr.id]);
+e=await erro(()=>as(A,`select restaurar_registro('locacoes','${r2.id}')`));
+ok(!!e&&/horário já está ocupado pela reserva de Mariana em 21\/11\/2026 \(20:00 às 22:00\)/.test(e),'restaurar com conflito de horário explica qual reserva ocupa a data');
+ok((await su(`select excluido from locacoes where id=$1`,[r2.id]))[0].excluido===true,'reserva com conflito continua na lixeira');
+await as(A,`select restaurar_registro('pessoas','${pz.id}')`);
+ok((await su(`select excluido from pessoas where id=$1`,[pz.id]))[0].excluido===false,'administrador restaura pessoa');
+ok((await su(`select numero from versoes_app where numero='v0.2.0'`)).length===1,'novidades da v0.2.0 registradas');
 
 console.log(falhas?`\n${falhas} FALHA(S)`:'\nTODOS OS TESTES PASSARAM');
 process.exit(falhas?1:0);

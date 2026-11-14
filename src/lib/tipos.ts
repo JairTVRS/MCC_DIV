@@ -49,6 +49,30 @@ export interface Permissao {
   excluir: boolean;
 }
 
+export interface FormaPagamento {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  ordem: number;
+}
+
+export type TabelaLixeira = 'locacoes' | 'parcelas' | 'anexos' | 'comentarios' | 'pessoas';
+
+export interface ItemLixeira {
+  tabela: TabelaLixeira;
+  id: string;
+  descricao: string;
+  detalhe: string | null;
+  excluido_por_nome: string | null;
+  excluido_em: string | null;
+}
+
+export interface UsuarioOnline {
+  id: string;
+  nome: string;
+  foto: string | null;
+}
+
 export interface VersaoApp {
   numero: string;
   data_publicacao: string;

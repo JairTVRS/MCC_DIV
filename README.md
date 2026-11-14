@@ -11,6 +11,7 @@ Web app para gerenciar as locações da casa de eventos: agenda contínua, reser
 
 | Versão | Data | Descrição |
 |---|---|---|
+| v0.2.0 | 13/11/2026 | Etapa 2: Configurações (nome e logo do app, formas de pagamento, lixeira com restauração), Meu perfil e troca de foto com recorte, contador de usuários online, página de política de privacidade |
 | v0.1.1 | 13/11/2026 | Carregamento inicial com tempo limite e mensagem de erro na tela; limpeza de espaços nas chaves do Supabase |
 | v0.1.0 | 12/11/2026 | Etapa 1: estrutura do projeto, banco completo com regras e permissões, login com Google, tela de espera de aprovação, menu com versão e novidades, tema claro e escuro |
 
@@ -25,8 +26,8 @@ Faça na ordem. Cada passo depende do anterior.
 ### 1. Supabase: criar o banco
 
 1. Em [supabase.com](https://supabase.com), abra o projeto (ou crie um novo, região São Paulo).
-2. Vá em **SQL Editor > New query**, cole todo o conteúdo de `supabase/migrations/20261112000100_v0_1_0_estrutura.sql` e clique em **Run**.
-3. Vá em **Database > Extensions**, ative **pg_cron** e depois rode, do mesmo jeito, `supabase/migrations/20261112000200_v0_1_0_rotina_alertas.sql`.
+2. Vá em **SQL Editor > New query**, cole todo o conteúdo de `supabase/migrations/001_estrutura.sql` e clique em **Run**.
+3. Vá em **Database > Extensions**, ative **pg_cron** e depois rode, do mesmo jeito, `supabase/migrations/002_rotina_alertas.sql`.
 4. Defina o primeiro administrador. No SQL Editor, rode (trocando pelo seu e-mail do Google):
 
    ```sql
@@ -34,6 +35,7 @@ Faça na ordem. Cada passo depende do anterior.
    ```
 
    O e-mail fica só no banco, fora do código, porque este repositório é público. Faça isso **antes** do primeiro login.
+5. Rode as demais migrações de `supabase/migrations/`, uma por vez e na ordem do número (`003_...`, `004_...` e as que vierem depois). Cada versão nova do app traz a sua.
 
 ### 2. Google Cloud: liberar o login
 
@@ -47,7 +49,11 @@ No [Google Cloud Console](https://console.cloud.google.com), projeto **MCCDIV**:
    ```
 
    O endereço exato aparece no Supabase em **Authentication > Sign In / Providers > Google** (campo *Callback URL*).
-3. **Google Auth Platform > Público-alvo**: enquanto o app estiver em **Teste**, só os e-mails cadastrados como usuários de teste conseguem entrar. Para qualquer conta Google poder pedir acesso, clique em **Publicar app**. O app usa só nome, e-mail e foto, então não precisa de verificação do Google.
+3. **Google Auth Platform > Branding**: preencha
+   - **Página inicial do aplicativo:** `https://mcc-div.pages.dev`
+   - **Política de privacidade:** `https://mcc-div.pages.dev/privacidade`
+   - **Domínios autorizados:** `mcc-div.pages.dev` (e o domínio do Supabase, se o Google pedir)
+4. **Google Auth Platform > Público-alvo**: enquanto o app estiver em **Teste**, só os e-mails cadastrados como usuários de teste conseguem entrar. Para qualquer conta Google poder pedir acesso, clique em **Publicar app**. O app usa só nome, e-mail e foto, então normalmente não precisa da verificação do Google.
 
 ### 3. Supabase: ligar o Google
 
@@ -97,7 +103,7 @@ cp .env.example .env.local   # preencha com os dados do Supabase
 npm install
 npm run dev                  # http://localhost:5173
 npm run build                # confere tipos e gera a pasta dist
-npm run test:db              # roda a migração num Postgres em memória e testa as regras
+npm run test:db              # roda todas as migrações num Postgres em memória e testa as regras
 ```
 
 ### Como o banco protege os dados
@@ -105,15 +111,17 @@ npm run test:db              # roda a migração num Postgres em memória e test
 - **Acesso:** só usuário com status `ativo` lê ou grava qualquer coisa. Pendente, recusado e inativo ficam bloqueados no próprio banco.
 - **Permissões:** cada perfil tem Visualizar, Incluir, Alterar e Excluir por módulo (`permissoes`) e ações sensíveis próprias (`perfil_acoes`): marcar pago, registrar devolução, confirmar e cancelar reserva, ver log geral, administrar usuários e restaurar da lixeira.
 - **Conflito de agenda:** o banco recusa pré-reserva ou reservado que se sobreponha a outra pré-reserva ou reservado. Cadastrado pode dividir a data.
-- **Exclusão lógica:** nada é apagado. Exclua e restaure pelas funções `excluir_registro(tabela, id)` e `restaurar_registro(tabela, id)`. Excluir uma reserva leva junto parcelas, anexos e comentários; restaurar traz de volta.
+- **Exclusão lógica:** nada é apagado. Exclua e restaure pelas funções `excluir_registro(tabela, id)` e `restaurar_registro(tabela, id)`. Excluir uma reserva leva junto parcelas, anexos e comentários; restaurar traz de volta. A lixeira (`listar_lixeira()`) mostra tudo que foi excluído; item de uma reserva excluída só volta junto com ela, e restaurar uma reserva cujo horário já foi ocupado é recusado com a reserva que está no caminho.
+- **Usuários:** o nome só muda por quem administra usuários; cada um troca a própria foto, que precisa estar na sua pasta do Storage. Trocar o tema ou ver as novidades não entra no log.
+- **Usuários online:** canal de presença privado do Realtime (`online`), aberto só para usuário ativo.
 - **Pagamento:** o status (pendente, parcial, pago, devolvido, devolvido parcial) é calculado pelo banco a partir das parcelas e da devolução.
 - **Log:** toda criação, alteração (campo, valor anterior e novo), exclusão e restauração vai para `log_eventos`, que ninguém altera nem apaga.
 
 ### Etapas do plano
 
 1. ✅ Projeto Supabase, tabelas, login Google e deploy inicial no Cloudflare
-2. Layout base completo: Configurações (nome, logo, formas de pagamento), avatar com upload
-3. Acesso: tela de aprovação, status do usuário, perfis e matriz de permissões
+2. ✅ Configurações (nome, logo, formas de pagamento, lixeira), avatar com upload, usuários online, política de privacidade
+3. Acesso: lista de espera com aprovação por grupo, status do usuário, grupos de usuários e árvore de permissões
 4. Cadastro de pessoas e da reserva
 5. Visões semanal e diária com arrastar e redimensionar
 6. Visão mensal e lista para celular

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Política de privacidade · Agenda de locações</title>
+    <meta name="description" content="Como a Agenda de locações da casa de eventos trata os dados de quem usa o aplicativo." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Montserrat:wght@400;500;600&display=swap" />
+    <style>
+      :root {
+        --bg: #f4f2eb;
+        --surface: #fbfaf6;
+        --fg: #373435;
+        --muted: #6b6566;
+        --line: #d7c6a9;
+        --accent: #7e6446;
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          --bg: #1f1d1e;
+          --surface: #2a2728;
+          --fg: #f1eee6;
+          --muted: #b2aaa0;
+          --line: #4d4748;
+          --accent: #dfcf93;
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme='dark'] {
+        --bg: #1f1d1e;
+        --surface: #2a2728;
+        --fg: #f1eee6;
+        --muted: #b2aaa0;
+        --line: #4d4748;
+        --accent: #dfcf93;
+        color-scheme: dark;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: 'Montserrat', Arial, sans-serif;
+        font-size: 15px;
+        line-height: 1.65;
+      }
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 40px max(16px, env(safe-area-inset-right, 0px)) 56px max(16px, env(safe-area-inset-left, 0px));
+      }
+      .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 32px clamp(18px, 5vw, 40px); }
+      h1, h2 { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 600; line-height: 1.15; }
+      h1 { font-size: clamp(30px, 6vw, 40px); margin: 0 0 6px; text-wrap: balance; }
+      h2 { font-size: 24px; margin: 30px 0 8px; }
+      p, ul { margin: 0 0 12px; }
+      ul { padding-left: 20px; }
+      li { margin-bottom: 6px; }
+      a { color: var(--accent); text-underline-offset: 2px; }
+      .data { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+      .voltar { display: inline-block; margin-bottom: 18px; font-size: 13px; }
+    </style>
+    <script>
+      try {
+        var t = localStorage.getItem('tema');
+        if (t === 'claro') document.documentElement.setAttribute('data-theme', 'light');
+        if (t === 'escuro') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <main>
+      <a class="voltar" href="/">← Voltar para o app</a>
+      <article class="card">
+        <h1>Política de privacidade</h1>
+        <p class="data">Atualizada em 13/11/2026</p>
+
+        <p>
+          A <strong>Agenda de locações</strong> é o aplicativo usado pela administração da casa de eventos para organizar reservas,
+          pagamentos e documentos das locações. O uso é restrito a pessoas autorizadas pela administração. Esta página explica quais
+          dados o aplicativo trata, para quê e como pedir acesso, correção ou exclusão, conforme a Lei Geral de Proteção de Dados
+          (Lei nº 13.709/2018).
+        </p>
+
+        <h2>Dados que coletamos</h2>
+        <ul>
+          <li>
+            <strong>Da sua conta Google, ao entrar:</strong> nome, endereço de e-mail e foto de perfil. Não temos acesso à sua senha,
+            contatos, e-mails, arquivos ou qualquer outro dado da conta.
+          </li>
+          <li>
+            <strong>Informações cadastradas por quem usa o app:</strong> pessoas ligadas às locações (nome, telefone, e-mail e
+            documento), reservas, valores e parcelas, anexos (como contratos e comprovantes) e comentários.
+          </li>
+          <li>
+            <strong>Histórico de uso:</strong> o app registra quem criou, alterou, excluiu ou restaurou cada informação, e quando.
+          </li>
+          <li><strong>Preferências:</strong> tema claro ou escuro e a foto que você enviar para o seu perfil.</li>
+        </ul>
+
+        <h2>Para que usamos</h2>
+        <ul>
+          <li>Identificar quem entra e liberar o acesso só para pessoas aprovadas pela administração.</li>
+          <li>Organizar a agenda, os pagamentos e os documentos das locações.</li>
+          <li>Manter o histórico de alterações, para conferência e segurança.</li>
+          <li>Mostrar aos demais usuários autorizados quem está usando o app no momento.</li>
+        </ul>
+        <p>Não usamos os dados para publicidade, não vendemos e não compartilhamos com terceiros, além dos serviços que mantêm o app funcionando (abaixo).</p>
+
+        <h2>Dados do Google</h2>
+        <p>
+          O uso das informações recebidas das APIs do Google segue a
+          <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener">Política de Dados do Usuário dos Serviços de API do Google</a>,
+          incluindo os requisitos de Uso Limitado. Pedimos apenas nome, e-mail e foto, usados só para identificar você no app.
+        </p>
+
+        <h2>Onde os dados ficam</h2>
+        <p>
+          Os dados ficam no Supabase (banco de dados e arquivos) e o app é hospedado pela Cloudflare. A comunicação é sempre
+          criptografada (HTTPS) e cada pessoa só vê o que o seu grupo de usuários permite.
+        </p>
+
+        <h2>Por quanto tempo</h2>
+        <p>
+          Os dados ficam guardados enquanto forem necessários para a gestão das locações e para obrigações legais. Excluir algo no app
+          tira a informação da tela de todos; ela fica numa lixeira, que só a administração acessa. O histórico de alterações é
+          permanente, para fins de auditoria.
+        </p>
+
+        <h2>Cookies e armazenamento</h2>
+        <p>
+          O app guarda no seu navegador apenas o necessário para manter você conectado e lembrar o tema escolhido. Não usamos cookies de
+          rastreamento ou de publicidade.
+        </p>
+
+        <h2>Seus direitos</h2>
+        <p>
+          Você pode pedir a confirmação de quais dados temos sobre você, a correção de dados errados, a exclusão dos seus dados ou a
+          retirada do seu acesso. Basta escrever para o contato abaixo.
+        </p>
+
+        <h2>Contato</h2>
+        <p>Administração da casa de eventos: <a href="mailto:retiroscasade@gmail.com">retiroscasade@gmail.com</a></p>
+
+        <h2>Mudanças nesta política</h2>
+        <p>Quando esta política mudar, a data no topo da página será atualizada.</p>
+      </article>
+    </main>
+  </body>
+</html>

@@ -28,7 +28,9 @@ export function Entrar() {
           <GoogleG />
           {abrindo ? 'Abrindo o Google…' : 'Entrar com Google'}
         </button>
-        <span className="foot">{APP_VERSION}</span>
+        <span className="foot">
+          {APP_VERSION} · <a href="/privacidade">Política de privacidade</a>
+        </span>
       </main>
     </div>
   );

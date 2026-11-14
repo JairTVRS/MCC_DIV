@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { mensagemErro } from '../lib/erros';
 import { supabase, supabaseConfigurado } from '../lib/supabase';
 import { aplicarTema } from '../lib/tema';
 import type { AcaoSensivel, Configuracoes, Modulo, Permissao, Usuario } from '../lib/tipos';
@@ -17,8 +18,12 @@ interface SessaoCtx {
   entrarComGoogle: () => Promise<void>;
   sair: () => Promise<void>;
   recarregarUsuario: () => Promise<void>;
-  atualizarUsuario: (campos: Partial<Pick<Usuario, 'tema_preferido' | 'ultima_versao_vista'>>) => Promise<void>;
+  recarregarConfig: () => Promise<void>;
+  /** Grava campos do próprio cadastro. Devolve a mensagem de erro, ou null se deu certo. */
+  atualizarUsuario: (campos: CamposProprios) => Promise<string | null>;
 }
+
+type CamposProprios = Partial<Pick<Usuario, 'tema_preferido' | 'ultima_versao_vista' | 'foto_upload' | 'usar_foto_upload'>>;
 
 const Ctx = createContext<SessaoCtx | null>(null);
 
@@ -134,7 +139,11 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.title = config?.nome_app || 'Agenda';
     const link = document.getElementById('favicon') as HTMLLinkElement | null;
-    if (link) link.href = config?.favicon || config?.logo_claro || '/favicon.svg';
+    if (!link) return;
+    const href = config?.favicon || config?.logo_claro || config?.logo_escuro || '/favicon.svg';
+    link.href = href;
+    if (/\.svg($|\?)/.test(href)) link.type = 'image/svg+xml';
+    else link.removeAttribute('type');
   }, [config]);
 
   const pode = useCallback(
@@ -164,16 +173,25 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
 
   const atualizarUsuario = useCallback<SessaoCtx['atualizarUsuario']>(
     async (campos) => {
-      if (!usuario) return;
+      if (!usuario) return 'Sessão encerrada. Entre de novo.';
+      const anterior = usuario;
       setUsuario({ ...usuario, ...campos });
-      await supabase.from('usuarios').update(campos).eq('id', usuario.id);
+      const { error } = await supabase.from('usuarios').update(campos).eq('id', usuario.id);
+      if (error) {
+        setUsuario(anterior);
+        return mensagemErro(error);
+      }
+      return null;
     },
     [usuario],
   );
 
   const valor = useMemo<SessaoCtx>(
-    () => ({ carregando, erro, sessao, usuario, config, pode, temAcao, entrarComGoogle, sair, recarregarUsuario, atualizarUsuario }),
-    [carregando, erro, sessao, usuario, config, pode, temAcao, entrarComGoogle, sair, recarregarUsuario, atualizarUsuario],
+    () => ({
+      carregando, erro, sessao, usuario, config, pode, temAcao, entrarComGoogle, sair, recarregarUsuario,
+      recarregarConfig: carregarConfig, atualizarUsuario,
+    }),
+    [carregando, erro, sessao, usuario, config, pode, temAcao, entrarComGoogle, sair, recarregarUsuario, carregarConfig, atualizarUsuario],
   );
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

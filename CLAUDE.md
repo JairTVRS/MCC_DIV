@@ -11,11 +11,15 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - **Versão:** semântica. A cada versão publicada, atualizar juntos:
   - `src/version.ts` (`APP_VERSION`) e `version` no `package.json`
   - tabela "Histórico de versões" no `README.md`
-  - uma migração `supabase/migrations/AAAAMMDDhhmmss_vX_Y_Z_<assunto>.sql` com o `insert` em `versoes_app` (alimenta o painel Novidades)
+  - uma migração `supabase/migrations/NNN_<descricao>.sql` com o `insert` em `versoes_app` (alimenta o painel Novidades)
 - **Banco:** toda mudança de esquema vira um arquivo novo em `supabase/migrations/` (nunca editar migração já aplicada). O Jair roda no SQL Editor do Supabase.
+- **Nome das migrações:** número sequencial de 3 dígitos + descrição curta em minúsculas com `_` (ex.: `004_configuracoes_lixeira_online.sql`; a próxima é `005_...`). A versão do app vai no cabeçalho do arquivo, não no nome. A ordem dos números é a ordem de execução.
 - **Testes do banco:** `npm run test:db` roda as migrações num Postgres em memória (PGlite) e confere as regras. Acrescente testes ao mudar regras.
 - **Correções de código:** preferir reescrever o arquivo inteiro a remendos parciais quando entregar ao Jair.
-- Nunca colocar no código: e-mails pessoais, Client Secret do Google, chave `service_role`/`secret` do Supabase. O repositório é público.
+- Nunca colocar no código: e-mails pessoais, Client Secret do Google, chave `service_role`/`secret` do Supabase. O repositório é público. Exceção autorizada: `retiroscasade@gmail.com` como contato da casa na página `/privacidade`.
+- **Árvore de acesso (sempre):** toda tela, aba ou ação nova nasce com seu nó na árvore módulo > função (ex.: Agenda > Visualizar, Incluir, Alterar, Excluir; funções sensíveis como filhas do módulo) e checagem no banco (RLS) e na interface. Permissões são dadas a **grupos de usuários**; cada usuário pertence a **um único grupo**. Ao planejar uma etapa, listar os nós que ela cria.
+- **Identidade visual:** a paleta e as fontes vieram de um manual de marca externo, usado só como referência. Nunca citar o nome dessa empresa em telas, textos, novidades ou documentos; chamar de "identidade visual do app".
+- **Permissões do agente de IA:** seguir a skill `.claude/skills/permissoes-agente/SKILL.md` (push publica no Cloudflare e exige aprovação; sem curingas genéricos).
 
 ## Stack e ambiente
 
@@ -34,16 +38,19 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - Exclusão lógica só por `excluir_registro(tabela, id)` / `restaurar_registro(tabela, id)`; cascata para parcelas, anexos e comentários.
 - `log_eventos` imutável, gravado por triggers (campo, valor anterior, novo, quem, quando).
 - Alertas de vencimento: `gerar_alertas_vencimento()` agendada no pg_cron, 07:00 de Brasília.
+- (v0.2.0) Lixeira: `listar_lixeira()` (só `restaurar_lixeira`); item de reserva excluída só volta com ela; restaurar com conflito de horário dá mensagem com a reserva que ocupa a data.
+- (v0.2.0) Nome do usuário só muda com `administrar_usuarios`; `foto_upload` precisa estar em `avatares/<id do usuário>/`; logos só do bucket `marca`; `tema_preferido` e `ultima_versao_vista` não entram no log.
+- (v0.2.0) Usuários online: canal privado de presença `online` no Realtime, com política em `realtime.messages` só para usuário ativo.
+- Rotas: o app usa só `#hash`; `/privacidade` é o arquivo estático `public/privacidade.html` (não existe `_redirects`).
 
 ## Situação atual
 
-- **v0.1.1 no ar.** Etapa 1 concluída: estrutura, banco, login Google, tela de espera, menu com versão/novidades/engrenagem, tema claro/escuro.
-- Telas Agenda, Lista, Pessoas, Usuários e Configurações ainda são "em construção".
+- **v0.2.0** — Etapa 2 concluída: Configurações (nome/logo com ícone da aba gerado, formas de pagamento, lixeira), Meu perfil e Trocar foto com recorte, contador de usuários online ao lado da versão, página `/privacidade`.
+- Telas Agenda, Lista, Pessoas e Usuários ainda são "em construção".
 
-## Próximas etapas (plano v1.8)
+## Próximas etapas (plano v1.8, com os ajustes do Jair)
 
-2. **(próxima, aguardando aprovação do escopo)** Configurações (nome e logo do app, formas de pagamento, lixeira), avatar com upload de foto, página `/privacidade` para publicar o app no Google.
-3. Acesso: tela de aprovação de usuários, status ativo/inativo, perfis e matriz de permissões.
+3. **(próxima)** Acesso: **lista de espera** (quem entra fica pendente; o admin aprova escolhendo o **grupo**), status ativo/inativo, **grupos de usuários** (os perfis atuais viram grupos; um grupo por usuário) e **árvore de permissões** por módulo > função, com catálogo de funções no banco substituindo `permissoes` + `perfil_acoes` (mantendo `tem_permissao`/`tem_acao` para não quebrar as regras). Inclui os nós "Usuários online > Visualizar", "Usuários > Editar dados" e as abas de Configurações.
 4. Cadastro de pessoas e da reserva (horário padrão 00:00–23:59; resumo pago/total e % na aba Dados).
 5. Visões semanal e diária (sem eixo de horas na lateral) com arrastar e redimensionar.
 6. Visão mensal (arrastar entre dias) e lista por dia no celular.
