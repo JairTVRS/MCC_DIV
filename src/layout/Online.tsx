@@ -5,14 +5,21 @@ import { supabase } from '../lib/supabase';
 import type { Usuario, UsuarioOnline } from '../lib/tipos';
 import { Avatar, fotoDe } from './Avatar';
 
+export interface EstadoOnline {
+  /** Quem está no app agora; null enquanto conecta ou se o canal falhou. */
+  lista: UsuarioOnline[] | null;
+  /** Motivo da falha do canal, para mostrar no ícone. */
+  erro: string | null;
+}
+
 /**
  * Presença em tempo real (Supabase Realtime) num canal privado "online".
  * O banco só deixa usuário ativo entrar e ver o canal. Cada pessoa conta uma vez,
  * mesmo com várias abas abertas (a chave da presença é o id do usuário).
- * Devolve null enquanto não conecta ou se o canal falhar.
  */
-export function useOnline(usuario: Usuario | null): UsuarioOnline[] | null {
+export function useOnline(usuario: Usuario | null): EstadoOnline {
   const [lista, setLista] = useState<UsuarioOnline[] | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
   const canalRef = useRef<RealtimeChannel | null>(null);
   const conectadoRef = useRef(false);
   const id = usuario?.id;
@@ -40,15 +47,20 @@ export function useOnline(usuario: Usuario | null): UsuarioOnline[] | null {
             .map((m) => ({ id: m.id, nome: m.nome, foto: m.foto }))
             .sort((a, b) => (a.id === id ? -1 : b.id === id ? 1 : a.nome.localeCompare(b.nome, 'pt-BR')));
           setLista(pessoas);
+          setErro(null);
         })
         .subscribe(async (status, err) => {
           if (status === 'SUBSCRIBED') {
             conectadoRef.current = true;
-            await canal.track({ id, ...dadosRef.current });
+            setErro(null);
+            const r = await canal.track({ id, ...dadosRef.current });
+            if (r !== 'ok') console.warn('[Agenda] Usuários online: presença não registrada:', r);
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             conectadoRef.current = false;
-            console.warn('[Agenda] Usuários online indisponível:', err?.message ?? status);
+            const motivo = err?.message ?? (status === 'TIMED_OUT' ? 'tempo esgotado' : 'canal recusado');
+            console.warn('[Agenda] Usuários online indisponível:', motivo);
             setLista(null);
+            setErro(motivo);
           }
         });
     })();
@@ -58,6 +70,7 @@ export function useOnline(usuario: Usuario | null): UsuarioOnline[] | null {
       if (canalRef.current) void supabase.removeChannel(canalRef.current);
       canalRef.current = null;
       setLista(null);
+      setErro(null);
     };
   }, [id]);
 
@@ -66,26 +79,37 @@ export function useOnline(usuario: Usuario | null): UsuarioOnline[] | null {
     if (id && conectadoRef.current && canalRef.current) void canalRef.current.track({ id, nome, foto });
   }, [id, nome, foto]);
 
-  return lista;
+  return { lista, erro };
 }
 
 /** Ícone com o número de pessoas no app agora; clicando, mostra quem são. */
-export function Online({ lista, euId }: { lista: UsuarioOnline[] | null; euId: string }) {
+export function Online({ estado, euId }: { estado: EstadoOnline; euId: string }) {
   const [aberto, setAberto] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
-  if (!lista) return null;
-  const n = lista.length;
-  const rotulo = `${n} ${n === 1 ? 'pessoa' : 'pessoas'} no app agora`;
-  const rc = aberto ? ref.current?.getBoundingClientRect() : undefined;
+  const { lista, erro } = estado;
+  const n = lista?.length ?? 0;
+  const rotulo = lista
+    ? `${n} ${n === 1 ? 'pessoa' : 'pessoas'} no app agora`
+    : erro
+      ? `Usuários online indisponível (${erro})`
+      : 'Conectando aos usuários online…';
+  const rc = aberto && lista ? ref.current?.getBoundingClientRect() : undefined;
 
   return (
     <>
-      <button ref={ref} className="online" onClick={() => setAberto((v) => !v)} title={rotulo} aria-label={rotulo} aria-expanded={aberto}>
+      <button
+        ref={ref}
+        className={`online${lista ? '' : ' fora'}`}
+        onClick={() => lista && setAberto((v) => !v)}
+        title={rotulo}
+        aria-label={rotulo}
+        aria-expanded={lista ? aberto : undefined}
+      >
         <Icone nome="people" tamanho={16} />
-        <span>{n}</span>
-        <i className="dot" aria-hidden="true" />
+        <span>{lista ? n : erro ? '–' : '…'}</span>
+        {lista && <i className="dot" aria-hidden="true" />}
       </button>
-      {aberto && rc && (
+      {rc && lista && (
         <>
           <div className="scrim clear alto" onClick={() => setAberto(false)} />
           <div className="pop alto" role="dialog" aria-label="Usuários online" style={{ bottom: window.innerHeight - rc.top + 8, left: Math.max(12, rc.left) }}>

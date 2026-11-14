@@ -40,12 +40,12 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - Alertas de vencimento: `gerar_alertas_vencimento()` agendada no pg_cron, 07:00 de Brasília.
 - (v0.2.0) Lixeira: `listar_lixeira()` (só `restaurar_lixeira`); item de reserva excluída só volta com ela; restaurar com conflito de horário dá mensagem com a reserva que ocupa a data.
 - (v0.2.0) Nome do usuário só muda com `administrar_usuarios`; `foto_upload` precisa estar em `avatares/<id do usuário>/`; logos só do bucket `marca`; `tema_preferido` e `ultima_versao_vista` não entram no log.
-- (v0.2.0) Usuários online: canal privado de presença `online` no Realtime, com política em `realtime.messages` só para usuário ativo.
+- (v0.2.0/v0.2.1) Usuários online: canal privado de presença `online` no Realtime, com políticas em `realtime.messages` (select e insert, extensões broadcast e presence) só para usuário ativo (migração 005).
 - Rotas: o app usa só `#hash`; `/privacidade` é o arquivo estático `public/privacidade.html` (não existe `_redirects`).
 
 ## Situação atual
 
-- **v0.2.0** — Etapa 2 concluída: Configurações (nome/logo com ícone da aba gerado, formas de pagamento, lixeira), Meu perfil e Trocar foto com recorte, contador de usuários online ao lado da versão, página `/privacidade`.
+- **v0.2.1** (correção do contador online). **v0.2.0** — Etapa 2 concluída: Configurações (nome/logo com ícone da aba gerado, formas de pagamento, lixeira), Meu perfil e Trocar foto com recorte, contador de usuários online ao lado da versão, página `/privacidade`.
 - Telas Agenda, Lista, Pessoas e Usuários ainda são "em construção".
 
 ## Próximas etapas (plano v1.8, com os ajustes do Jair)

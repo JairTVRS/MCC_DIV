@@ -180,6 +180,8 @@ svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none;
 .online { border: 0; background: none; color: var(--side-muted); display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; }
 .online:hover, .online[aria-expanded='true'] { color: var(--side-fg); background: var(--side-hover); }
 .online .dot { width: 7px; height: 7px; border-radius: 50%; background: #7fb069; box-shadow: 0 0 0 2px var(--side); }
+.online.fora { opacity: 0.55; cursor: default; }
+.online.fora:hover { background: none; color: var(--side-muted); }
 .gear[aria-current='page'] { color: var(--side-active); }
 .scrim.alto { z-index: 49; }
 .pop.alto { z-index: 50; }

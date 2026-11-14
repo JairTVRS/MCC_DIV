@@ -115,7 +115,7 @@ export function Casca() {
             <button className="ver" onClick={() => void abrirNovidades()} title="Ver as novidades desta versão">
               {APP_VERSION}
             </button>
-            <Online lista={online} euId={usuario.id} />
+            <Online estado={online} euId={usuario.id} />
           </div>
           {pode('configuracoes', 'visualizar') && (
             <button
