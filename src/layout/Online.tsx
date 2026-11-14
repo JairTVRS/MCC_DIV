@@ -31,7 +31,23 @@ export function useOnline(usuario: Usuario | null): EstadoOnline {
   useEffect(() => {
     if (!id) return;
     let vivo = true;
-    (async () => {
+    let espera: number | undefined;
+    let tentativas = 0;
+
+    // Se o canal falhar, tenta de novo sozinho: 5 s, 10 s, 20 s… até 1 minuto entre tentativas.
+    const tentarDeNovo = (canal: RealtimeChannel) => {
+      if (espera !== undefined || !vivo) return;
+      conectadoRef.current = false;
+      if (canalRef.current === canal) canalRef.current = null;
+      void supabase.removeChannel(canal);
+      const ms = Math.min(60000, 5000 * 2 ** tentativas++);
+      espera = window.setTimeout(() => {
+        espera = undefined;
+        void conectar();
+      }, ms);
+    };
+
+    const conectar = async () => {
       // O canal privado precisa do token do usuário logado.
       const { data } = await supabase.auth.getSession();
       if (!vivo) return;
@@ -50,22 +66,27 @@ export function useOnline(usuario: Usuario | null): EstadoOnline {
           setErro(null);
         })
         .subscribe(async (status, err) => {
+          if (!vivo || canalRef.current !== canal) return;
           if (status === 'SUBSCRIBED') {
+            tentativas = 0;
             conectadoRef.current = true;
             setErro(null);
             const r = await canal.track({ id, ...dadosRef.current });
             if (r !== 'ok') console.warn('[Agenda] Usuários online: presença não registrada:', r);
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            conectadoRef.current = false;
             const motivo = err?.message ?? (status === 'TIMED_OUT' ? 'tempo esgotado' : 'canal recusado');
-            console.warn('[Agenda] Usuários online indisponível:', motivo);
+            console.warn('[Agenda] Usuários online indisponível; tentando de novo:', motivo);
             setLista(null);
             setErro(motivo);
+            tentarDeNovo(canal);
           }
         });
-    })();
+    };
+
+    void conectar();
     return () => {
       vivo = false;
+      window.clearTimeout(espera);
       conectadoRef.current = false;
       if (canalRef.current) void supabase.removeChannel(canalRef.current);
       canalRef.current = null;
