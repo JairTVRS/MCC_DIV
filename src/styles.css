@@ -192,10 +192,12 @@ svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none;
 
 /* Formulários e listas */
 .pagina { max-width: 880px; margin: 0 auto; }
-.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line2); margin-bottom: 20px; overflow-x: auto; }
-.tabs button { border: 0; background: none; padding: 10px 14px; color: var(--muted); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+/* Linha e destaque desenhados com sombra interna: nada vaza da barra, então não aparece rolagem vertical. */
+.tabs { display: flex; gap: 2px; box-shadow: inset 0 -1px 0 var(--line2); margin-bottom: 20px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { border: 0; background: none; padding: 10px 14px 12px; color: var(--muted); font-weight: 500; white-space: nowrap; }
 .tabs button:hover { color: var(--fg); }
-.tabs button[aria-selected='true'] { color: var(--fg); border-bottom-color: var(--accent); }
+.tabs button[aria-selected='true'] { color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
 .secoes { display: flex; flex-direction: column; gap: 16px; }
 .secao { background: var(--surface); border: 1px solid var(--line2); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
 .secao h3 { margin: 0; font-family: var(--serif); font-size: 23px; font-weight: 600; line-height: 1.1; }
