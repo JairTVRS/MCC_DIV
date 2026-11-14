@@ -11,6 +11,7 @@ Web app para gerenciar as locações da casa de eventos: agenda contínua, reser
 
 | Versão | Data | Descrição |
 |---|---|---|
+| v0.2.2 | 13/11/2026 | Ícone da aba do navegador enviado à parte (imagem quadrada); sem ele, continua gerado a partir do logo |
 | v0.2.1 | 13/11/2026 | Correção do contador de usuários online (políticas do canal privado); o ícone aparece sempre e mostra quando o canal está indisponível |
 | v0.2.0 | 13/11/2026 | Etapa 2: Configurações (nome e logo do app, formas de pagamento, lixeira com restauração), Meu perfil e troca de foto com recorte, contador de usuários online, página de política de privacidade |
 | v0.1.1 | 13/11/2026 | Carregamento inicial com tempo limite e mensagem de erro na tela; limpeza de espaços nas chaves do Supabase |

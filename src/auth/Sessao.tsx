@@ -50,7 +50,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const tentativaRegistrada = useRef(false);
 
   const carregarConfig = useCallback(async () => {
-    const { data, error } = await supabase.from('configuracoes').select('nome_app, logo_claro, logo_escuro, favicon').eq('id', 1).maybeSingle();
+    const { data, error } = await supabase.from('configuracoes').select('nome_app, logo_claro, logo_escuro, favicon, favicon_proprio').eq('id', 1).maybeSingle();
     if (error) console.error('[Agenda] Configurações:', error.message);
     if (data) setConfig(data as Configuracoes);
   }, []);

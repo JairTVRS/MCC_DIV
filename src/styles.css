@@ -225,6 +225,13 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 .previa.escuro { background: #373435; color: #f4f2eb; }
 .previa img { max-height: 60px; max-width: 100%; object-fit: contain; }
 .previa .nm { font-family: var(--serif); font-size: 28px; font-weight: 600; text-align: center; line-height: 1.05; }
+.icone-linha { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.aba-falsa { display: flex; align-items: center; gap: 8px; width: 220px; max-width: 100%; padding: 8px 12px; border-radius: 8px 8px 0 0; background: var(--surface2); border: 1px solid var(--line2); border-bottom: 0; font-size: 12.5px; }
+.aba-falsa img { width: 16px; height: 16px; object-fit: contain; flex: none; }
+.aba-falsa span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icone-grande { width: 64px; height: 64px; border-radius: 12px; border: 1px solid var(--line2); background: var(--bg); display: grid; place-items: center; flex: none; }
+.icone-grande img { width: 48px; height: 48px; object-fit: contain; }
+.icone-info { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 
 .linhas { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line2); border-radius: 10px; overflow: hidden; }
 .linha { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line2); min-height: 52px; }

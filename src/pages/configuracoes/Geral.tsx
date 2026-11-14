@@ -5,25 +5,31 @@ import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
 import { supabase } from '../../lib/supabase';
 
-const TIPOS_LOGO = ['image/png', 'image/svg+xml', 'image/webp'];
+const TIPOS_IMAGEM = ['image/png', 'image/svg+xml', 'image/webp'];
 
 type Lado = 'claro' | 'escuro';
+type Campo = Lado | 'icone';
 
-interface Logo {
+interface Imagem {
   atual: string | null; // o que está salvo no banco
   novo: File | null; // escolhido agora, ainda não enviado
   previa: string | null; // endereço local do arquivo novo, para a prévia
   removido: boolean;
 }
 
-const vazio = (atual: string | null): Logo => ({ atual, novo: null, previa: null, removido: false });
-const exibida = (l: Logo) => l.previa ?? (l.removido ? null : l.atual);
+const vazio = (atual: string | null): Imagem => ({ atual, novo: null, previa: null, removido: false });
+const exibida = (l: Imagem) => l.previa ?? (l.removido ? null : l.atual);
 
-/** Nome e logo do app. O ícone da aba é gerado a partir do logo ao salvar. */
+/** Nome, logo e ícone da aba. Sem ícone enviado, ele é gerado a partir do logo ao salvar. */
 export function Geral({ podeAlterar }: { podeAlterar: boolean }) {
   const { config, recarregarConfig } = useSessao();
+  const inicial = (): Record<Campo, Imagem> => ({
+    claro: vazio(config?.logo_claro ?? null),
+    escuro: vazio(config?.logo_escuro ?? null),
+    icone: vazio(config?.favicon_proprio ? config.favicon : null),
+  });
   const [nome, setNome] = useState(config?.nome_app ?? '');
-  const [logos, setLogos] = useState<Record<Lado, Logo>>({ claro: vazio(config?.logo_claro ?? null), escuro: vazio(config?.logo_escuro ?? null) });
+  const [imgs, setImgs] = useState<Record<Campo, Imagem>>(inicial);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -31,11 +37,11 @@ export function Geral({ podeAlterar }: { podeAlterar: boolean }) {
 
   useEffect(() => () => previas.current.forEach((u) => URL.revokeObjectURL(u)), []);
 
-  const sujo = nome.trim() !== (config?.nome_app ?? '') || (['claro', 'escuro'] as Lado[]).some((l) => logos[l].novo || logos[l].removido);
+  const sujo = nome.trim() !== (config?.nome_app ?? '') || (['claro', 'escuro', 'icone'] as Campo[]).some((c) => imgs[c].novo || imgs[c].removido);
 
-  function escolher(lado: Lado, arquivo: File | undefined) {
+  function escolher(campo: Campo, arquivo: File | undefined) {
     if (!arquivo) return;
-    const problema = validarImagem(arquivo, TIPOS_LOGO, DOIS_MB);
+    const problema = validarImagem(arquivo, TIPOS_IMAGEM, DOIS_MB);
     if (problema) {
       setErro(problema);
       return;
@@ -44,17 +50,17 @@ export function Geral({ podeAlterar }: { podeAlterar: boolean }) {
     setOk(null);
     const previa = URL.createObjectURL(arquivo);
     previas.current.push(previa);
-    setLogos((ls) => ({ ...ls, [lado]: { ...ls[lado], novo: arquivo, previa, removido: false } }));
+    setImgs((s) => ({ ...s, [campo]: { ...s[campo], novo: arquivo, previa, removido: false } }));
   }
 
-  function remover(lado: Lado) {
+  function remover(campo: Campo) {
     setOk(null);
-    setLogos((ls) => ({ ...ls, [lado]: { ...ls[lado], novo: null, previa: null, removido: true } }));
+    setImgs((s) => ({ ...s, [campo]: { ...s[campo], novo: null, previa: null, removido: true } }));
   }
 
   function descartar() {
     setNome(config?.nome_app ?? '');
-    setLogos({ claro: vazio(config?.logo_claro ?? null), escuro: vazio(config?.logo_escuro ?? null) });
+    setImgs(inicial());
     setErro(null);
     setOk(null);
   }
@@ -64,39 +70,54 @@ export function Geral({ podeAlterar }: { podeAlterar: boolean }) {
     setErro(null);
     setOk(null);
     const enviados: string[] = [];
+    const enviar = async (caminho: string, arquivo: Blob, tipo: string) => {
+      const url = await enviarArquivo('marca', caminho, arquivo, tipo);
+      enviados.push(url);
+      return url;
+    };
     try {
-      const urlFinal = async (lado: Lado): Promise<string | null> => {
-        const l = logos[lado];
-        if (l.novo) {
-          const url = await enviarArquivo('marca', `logo-${lado}-${carimbo()}.${extensao(l.novo.type)}`, l.novo, l.novo.type);
-          enviados.push(url);
-          return url;
-        }
+      const urlLogo = async (lado: Lado): Promise<string | null> => {
+        const l = imgs[lado];
+        if (l.novo) return enviar(`logo-${lado}-${carimbo()}.${extensao(l.novo.type)}`, l.novo, l.novo.type);
         return l.removido ? null : l.atual;
       };
-      const claro = await urlFinal('claro');
-      const escuro = await urlFinal('escuro');
+      const claro = await urlLogo('claro');
+      const escuro = await urlLogo('escuro');
 
-      // Ícone da aba: refeito quando muda o logo de origem (de preferência a versão clara).
-      const origem = claro ?? escuro;
-      const origemAntes = config?.logo_claro ?? config?.logo_escuro ?? null;
-      let favicon = config?.favicon ?? null;
-      if (!origem) favicon = null;
-      else if (origem !== origemAntes || !favicon) {
-        const fonteLocal = claro ? logos.claro.previa : logos.escuro.previa;
-        try {
-          const png = await gerarFavicon(fonteLocal ?? origem);
-          favicon = await enviarArquivo('marca', `favicon-${carimbo()}.png`, png, 'image/png');
-          enviados.push(favicon);
-        } catch (e) {
-          console.warn('[Agenda] Ícone da aba não gerado; o logo será usado direto.', e);
-          favicon = null;
-        }
+      let favicon: string | null;
+      let proprio: boolean;
+      const ic = imgs.icone;
+      if (ic.novo) {
+        // Ícone enviado: SVG vai como está; PNG/WebP viram um PNG quadrado de 128 px (leve e nítido).
+        proprio = true;
+        favicon =
+          ic.novo.type === 'image/svg+xml'
+            ? await enviar(`icone-${carimbo()}.svg`, ic.novo, ic.novo.type)
+            : await enviar(`icone-${carimbo()}.png`, await gerarFavicon(ic.previa ?? '', 128), 'image/png');
+      } else if (ic.atual && !ic.removido) {
+        proprio = true;
+        favicon = ic.atual;
+      } else {
+        // Sem ícone próprio: gerado a partir do logo (de preferência a versão clara), refeito quando o logo muda.
+        proprio = false;
+        const origem = claro ?? escuro;
+        const origemAntes = config?.logo_claro ?? config?.logo_escuro ?? null;
+        const geradoAntes = config?.favicon_proprio ? null : config?.favicon ?? null;
+        if (!origem) favicon = null;
+        else if (origem !== origemAntes || !geradoAntes) {
+          const fonteLocal = claro ? imgs.claro.previa : imgs.escuro.previa;
+          try {
+            favicon = await enviar(`favicon-${carimbo()}.png`, await gerarFavicon(fonteLocal ?? origem), 'image/png');
+          } catch (e) {
+            console.warn('[Agenda] Ícone da aba não gerado; o logo será usado direto.', e);
+            favicon = null;
+          }
+        } else favicon = geradoAntes;
       }
 
       const { data, error } = await supabase
         .from('configuracoes')
-        .update({ nome_app: nome.trim() || null, logo_claro: claro, logo_escuro: escuro, favicon })
+        .update({ nome_app: nome.trim() || null, logo_claro: claro, logo_escuro: escuro, favicon, favicon_proprio: proprio })
         .eq('id', 1)
         .select('id');
       if (error) throw error;
@@ -105,7 +126,7 @@ export function Geral({ podeAlterar }: { podeAlterar: boolean }) {
       const emUso = [claro, escuro, favicon];
       await removerArquivos('marca', [config?.logo_claro, config?.logo_escuro, config?.favicon].filter((u) => u && !emUso.includes(u)));
       await recarregarConfig();
-      setLogos({ claro: vazio(claro), escuro: vazio(escuro) });
+      setImgs({ claro: vazio(claro), escuro: vazio(escuro), icone: vazio(proprio ? favicon : null) });
       setNome(nome.trim());
       setOk('Configurações salvas.');
     } catch (e) {
@@ -117,6 +138,31 @@ export function Geral({ podeAlterar }: { podeAlterar: boolean }) {
   }
 
   const nomeExibido = nome.trim() || 'Agenda';
+
+  // Prévia do ícone: o enviado; senão, o logo atual (é dele que o ícone será gerado); senão, o padrão do app.
+  const iconeProprio = exibida(imgs.icone);
+  const logoBase = exibida(imgs.claro) ?? exibida(imgs.escuro);
+  const iconePrevia = iconeProprio ?? (logoBase ? (sujo ? logoBase : config?.favicon ?? logoBase) : '/favicon.svg');
+  const iconeOrigem = iconeProprio ? 'Enviado por você' : logoBase ? 'Gerado a partir do logo' : 'Ícone padrão do app';
+
+  function botaoEnviar(campo: Campo, texto: string) {
+    return (
+      <label className={`btn peq${salvando ? ' desab' : ''}`}>
+        <Icone nome="upload" tamanho={16} />
+        {texto}
+        <input
+          type="file"
+          accept={TIPOS_IMAGEM.join(',')}
+          hidden
+          disabled={salvando}
+          onChange={(e) => {
+            escolher(campo, e.target.files?.[0]);
+            e.target.value = '';
+          }}
+        />
+      </label>
+    );
+  }
 
   return (
     <div className="secoes">
@@ -133,27 +179,14 @@ export function Geral({ podeAlterar }: { podeAlterar: boolean }) {
         <h3>Logo</h3>
         <div className="logos">
           {(['claro', 'escuro'] as Lado[]).map((lado) => {
-            const url = exibida(logos[lado]);
+            const url = exibida(imgs[lado]);
             return (
               <div className="logo-caixa" key={lado}>
                 <span className="rot">{lado === 'claro' ? 'Para fundo claro' : 'Para fundo escuro'}</span>
                 <div className={`previa ${lado}`}>{url ? <img src={url} alt={`Logo para fundo ${lado}`} /> : <span className="nm">{nomeExibido}</span>}</div>
                 {podeAlterar && (
                   <div className="acoes">
-                    <label className={`btn peq${salvando ? ' desab' : ''}`}>
-                      <Icone nome="upload" tamanho={16} />
-                      {url ? 'Trocar' : 'Enviar imagem'}
-                      <input
-                        type="file"
-                        accept={TIPOS_LOGO.join(',')}
-                        hidden
-                        disabled={salvando}
-                        onChange={(e) => {
-                          escolher(lado, e.target.files?.[0]);
-                          e.target.value = '';
-                        }}
-                      />
-                    </label>
+                    {botaoEnviar(lado, url ? 'Trocar' : 'Enviar imagem')}
                     {url && (
                       <button className="btn peq" onClick={() => remover(lado)} disabled={salvando}>
                         <Icone nome="trash" tamanho={16} />
@@ -166,8 +199,36 @@ export function Geral({ podeAlterar }: { podeAlterar: boolean }) {
             );
           })}
         </div>
+        <p className="note">PNG, SVG ou WebP, até 2 MB. Para fundo claro, prefira imagem com fundo transparente. O menu lateral é sempre escuro: sem a versão para fundo escuro, ele usa a clara.</p>
+      </section>
+
+      <section className="secao">
+        <h3>Ícone da aba</h3>
+        <div className="icone-linha">
+          <div className="aba-falsa" aria-hidden="true">
+            <img src={iconePrevia} alt="" />
+            <span>{nomeExibido}</span>
+          </div>
+          <div className="icone-grande">
+            <img src={iconePrevia} alt="Prévia do ícone da aba" />
+          </div>
+          <div className="icone-info">
+            <span className="rot">{iconeOrigem}</span>
+            {podeAlterar && (
+              <div className="acoes">
+                {botaoEnviar('icone', iconeProprio ? 'Trocar' : 'Enviar ícone')}
+                {iconeProprio && (
+                  <button className="btn peq" onClick={() => remover('icone')} disabled={salvando}>
+                    <Icone nome="restore" tamanho={16} />
+                    Usar o gerado pelo logo
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
         <p className="note">
-          PNG, SVG ou WebP, até 2 MB. O menu lateral é sempre escuro: sem a versão para fundo escuro, ele usa a clara. O ícone da aba do navegador é gerado a partir do logo.
+          Opcional. Use uma imagem quadrada, como só o símbolo do logo: no tamanho da aba, um logo largo fica ilegível. PNG, SVG ou WebP, até 2 MB. Sem ícone enviado, ele é gerado a partir do logo.
         </p>
       </section>
 

@@ -45,7 +45,7 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 
 ## Situação atual
 
-- **v0.2.1** (correção do contador online). **v0.2.0** — Etapa 2 concluída: Configurações (nome/logo com ícone da aba gerado, formas de pagamento, lixeira), Meu perfil e Trocar foto com recorte, contador de usuários online ao lado da versão, página `/privacidade`.
+- **v0.2.2** (ícone da aba enviado à parte: `configuracoes.favicon_proprio`, migração 006). **v0.2.1** (correção do contador online). **v0.2.0** — Etapa 2 concluída: Configurações (nome/logo com ícone da aba gerado, formas de pagamento, lixeira), Meu perfil e Trocar foto com recorte, contador de usuários online ao lado da versão, página `/privacidade`.
 - Telas Agenda, Lista, Pessoas e Usuários ainda são "em construção".
 
 ## Próximas etapas (plano v1.8, com os ajustes do Jair)

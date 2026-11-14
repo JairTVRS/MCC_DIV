@@ -39,6 +39,8 @@ export interface Configuracoes {
   logo_claro: string | null;
   logo_escuro: string | null;
   favicon: string | null;
+  /** true: ícone enviado à parte; false: gerado a partir do logo. */
+  favicon_proprio: boolean;
 }
 
 export interface Permissao {

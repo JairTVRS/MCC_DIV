@@ -168,6 +168,10 @@ ok(!!await erro(()=>as(A,`update configuracoes set logo_claro='http://outro.site
 await as(A,`update configuracoes set logo_claro='https://p.supabase.co/storage/v1/object/public/marca/logo.png' where id=1`);
 ok((await su(`select logo_claro from configuracoes`))[0].logo_claro.endsWith('/marca/logo.png'),'logo do bucket "marca" é aceito');
 ok((await su(`select * from log_eventos where tabela='configuracoes' and campo='nome_app'`)).length===1,'alteração das configurações entra no log');
+ok((await su(`select favicon_proprio from configuracoes`))[0].favicon_proprio===false,'ícone da aba começa como gerado pelo logo (v0.2.2)');
+await as(A,`update configuracoes set favicon='https://p.supabase.co/storage/v1/object/public/marca/icone-x.png', favicon_proprio=true where id=1`);
+ok((await su(`select favicon_proprio from configuracoes`))[0].favicon_proprio===true,'administrador envia ícone da aba próprio');
+ok(!!await erro(()=>as(A,`update configuracoes set favicon='http://outro.site/i.png' where id=1`)),'ícone fora do bucket "marca" é recusado');
 ok(!!await erro(()=>as(B,`insert into formas_pagamento(nome,ordem) values('Cheque',7)`)),'operador não inclui forma de pagamento');
 ok(!!await erro(()=>as(A,`insert into formas_pagamento(nome,ordem) values(' pix ',7)`)),'forma de pagamento repetida (maiúsculas/espaços) é recusada');
 ok(!!await erro(()=>as(A,`insert into formas_pagamento(nome,ordem) values('   ',7)`)),'forma de pagamento em branco é recusada');
@@ -199,7 +203,7 @@ ok(!!e&&/horário já está ocupado pela reserva de Mariana em 21\/11\/2026 \(20
 ok((await su(`select excluido from locacoes where id=$1`,[r2.id]))[0].excluido===true,'reserva com conflito continua na lixeira');
 await as(A,`select restaurar_registro('pessoas','${pz.id}')`);
 ok((await su(`select excluido from pessoas where id=$1`,[pz.id]))[0].excluido===false,'administrador restaura pessoa');
-ok((await su(`select numero from versoes_app where numero='v0.2.0'`)).length===1,'novidades da v0.2.0 registradas');
+ok((await su(`select numero from versoes_app where numero in ('v0.2.0','v0.2.1','v0.2.2')`)).length===3,'novidades da v0.2.0, v0.2.1 e v0.2.2 registradas');
 
 console.log(falhas?`\n${falhas} FALHA(S)`:'\nTODOS OS TESTES PASSARAM');
 process.exit(falhas?1:0);

@@ -62,10 +62,9 @@ export function canvasParaBlob(canvas: HTMLCanvasElement, tipo: string, qualidad
   });
 }
 
-/** Ícone da aba: o logo centralizado num quadrado de 64×64 px, em PNG. */
-export async function gerarFavicon(src: string): Promise<Blob> {
+/** Ícone da aba: a imagem centralizada num quadrado (64×64 px por padrão), em PNG. */
+export async function gerarFavicon(src: string, lado = 64): Promise<Blob> {
   const img = await carregarImagem(src);
-  const lado = 64;
   const w = img.naturalWidth || lado;
   const h = img.naturalHeight || lado;
   const escala = Math.min(lado / w, lado / h);
