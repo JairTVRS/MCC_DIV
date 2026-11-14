@@ -45,7 +45,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const tentativaRegistrada = useRef(false);
 
   const carregarConfig = useCallback(async () => {
-    const { data } = await supabase.from('configuracoes').select('nome_app, logo_claro, logo_escuro, favicon').eq('id', 1).maybeSingle();
+    const { data, error } = await supabase.from('configuracoes').select('nome_app, logo_claro, logo_escuro, favicon').eq('id', 1).maybeSingle();
+    if (error) console.error('[Agenda] Configurações:', error.message);
     if (data) setConfig(data as Configuracoes);
   }, []);
 
@@ -58,7 +59,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     }
     const { data, error } = await supabase.from('usuarios').select(COLUNAS_USUARIO).eq('id', s.user.id).maybeSingle();
     if (error || !data) {
-      setErro('Não encontramos seu cadastro no banco. Confira se a migração do Supabase foi executada.');
+      if (error) console.error('[Agenda] Usuário:', error.message);
+      setErro(error ? `Erro ao ler seu cadastro: ${error.message}` : 'Não encontramos seu cadastro no banco. Confira se a migração do Supabase foi executada.');
       setUsuario(null);
       return;
     }
@@ -92,13 +94,27 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       return;
     }
     let ativo = true;
-    (async () => {
-      await carregarConfig();
-      const { data } = await supabase.auth.getSession();
+    // Se algo travar ou der erro, a tela de entrada aparece com a mensagem, em vez de ficar carregando para sempre.
+    const limite = window.setTimeout(() => {
       if (!ativo) return;
-      setSessao(data.session);
-      await carregarUsuario(data.session);
-      if (ativo) setCarregando(false);
+      setErro('O servidor demorou para responder. Recarregue a página; se continuar, confira a conexão com o Supabase.');
+      setCarregando(false);
+    }, 15000);
+    (async () => {
+      try {
+        await carregarConfig();
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (!ativo) return;
+        setSessao(data.session);
+        await carregarUsuario(data.session);
+      } catch (e) {
+        console.error('[Agenda] Falha ao iniciar:', e);
+        if (ativo) setErro(`Não foi possível conectar ao servidor: ${e instanceof Error ? e.message : String(e)}`);
+      } finally {
+        window.clearTimeout(limite);
+        if (ativo) setCarregando(false);
+      }
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((evento, s) => {
       setSessao(s);
@@ -109,6 +125,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     });
     return () => {
       ativo = false;
+      window.clearTimeout(limite);
       sub.subscription.unsubscribe();
     };
   }, [carregarConfig, carregarUsuario]);

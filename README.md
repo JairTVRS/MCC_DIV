@@ -11,6 +11,7 @@ Web app para gerenciar as locações da casa de eventos: agenda contínua, reser
 
 | Versão | Data | Descrição |
 |---|---|---|
+| v0.1.1 | 13/11/2026 | Carregamento inicial com tempo limite e mensagem de erro na tela; limpeza de espaços nas chaves do Supabase |
 | v0.1.0 | 12/11/2026 | Etapa 1: estrutura do projeto, banco completo com regras e permissões, login com Google, tela de espera de aprovação, menu com versão e novidades, tema claro e escuro |
 
 Toda mensagem de commit começa pela versão: `v0.1.0 - Descrição da mudança`.
