@@ -359,7 +359,6 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
             <label className="campo">
               <span className="rot">Data base</span>
               <input className="inp" type="date" value={base} onChange={(e) => setBase(e.target.value)} />
-              <span className="note">{reserva.pre_reserva_em ? 'Data em que entrou em Pré-reserva.' : 'Ainda não é Pré-reserva: usando hoje.'}</span>
             </label>
             <label className="campo">
               <span className="rot">Forma de pagamento</span>
@@ -374,6 +373,11 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
             <button type="button" className="btn" onClick={aplicarPrazo} disabled={!prazoId || aParcelar <= 0}>
               Gerar parcelas
             </button>
+            <p className="note plano-dica">
+              {reserva.pre_reserva_em
+                ? `Data base = dia em que a reserva entrou em Pré-reserva (${new Date(reserva.pre_reserva_em).toLocaleDateString('pt-BR')}); os dias do prazo contam a partir dela.`
+                : 'A reserva ainda não é Pré-reserva: a data base começa em hoje. Os dias do prazo contam a partir dela.'}
+            </p>
           </div>
 
           {pagas.length > 0 && (

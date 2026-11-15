@@ -461,8 +461,7 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 .parcela.encerrada { opacity: 0.6; }
 .parcela-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
 .plano-gerar { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; padding: 12px; border: 1px solid var(--line2); border-radius: 10px; background: var(--bg); }
-.plano-gerar .campo .note { position: absolute; }
-.plano-gerar .campo { position: relative; padding-bottom: 14px; }
+.plano-dica { grid-column: 1 / -1; margin: 0; }
 .modal.plano { width: min(940px, calc(100% - 32px)); max-height: calc(100% - 32px); }
 .modal.plano .m-body { gap: 10px; padding: 14px 18px; }
 .tabela-plano .inp { padding: 6px 10px; }
