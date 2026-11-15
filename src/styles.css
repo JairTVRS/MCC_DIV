@@ -357,7 +357,8 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 .pagina.agenda.com-calendario { height: 100%; }
 .agenda-barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .agenda-nav { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.agenda-titulo { margin: 0 0 0 8px; font-family: var(--serif); font-size: 24px; font-weight: 600; line-height: 1.1; text-transform: capitalize; }
+.agenda-titulo { margin: 0 0 0 8px; font-family: var(--serif); font-size: 24px; font-weight: 600; line-height: 1.1; }
+.agenda-titulo::first-letter { text-transform: uppercase; }
 .segmentos { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
 .segmentos button { border: 0; background: none; padding: 7px 14px; font-weight: 500; color: var(--muted); }
 .segmentos button + button { border-left: 1px solid var(--line); }
@@ -390,7 +391,38 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 .calendario .fc-event.ev-reservado { --fc-event-bg-color: var(--st-res-bg); --fc-event-border-color: var(--st-res-bd); --fc-event-text-color: var(--st-res-fg); }
 .calendario .fc-event.ev-cancelado { --fc-event-bg-color: var(--st-can-bg); --fc-event-border-color: var(--st-can-bd); --fc-event-text-color: var(--st-can-fg); opacity: 0.8; }
 .calendario .fc-event.ev-cancelado .ev-nome { text-decoration: line-through; }
-.ev { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; height: 100%; }
+.ev { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; }
+/* Semana/Dia: o texto do card acompanha a rolagem, para nome e horário continuarem visíveis numa reserva longa. */
+.calendario .fc-timegrid-event .ev { position: sticky; top: 4px; }
+
+/* Mês: faixa por reserva, numa linha */
+.calendario .fc-h-event { border-width: 1px 1px 1px 3px; border-radius: 4px; cursor: pointer; }
+.calendario .fc-h-event .fc-event-main { padding: 1px 5px; }
+.ev-linha { flex-direction: row; align-items: baseline; gap: 5px; white-space: nowrap; }
+.ev-linha .ev-nome { font-size: 12px; font-weight: 600; text-overflow: ellipsis; overflow: hidden; }
+.ev-linha .ev-hora { font-size: 11px; flex: none; }
+.calendario .fc .fc-daygrid-day-number { color: var(--fg); text-decoration: none; padding: 4px 8px; font-variant-numeric: tabular-nums; }
+.calendario .fc .fc-daygrid-day-number:hover { color: var(--accent-strong); text-decoration: underline; }
+.calendario .fc .fc-day-today .fc-daygrid-day-number { background: var(--btn); color: var(--btn-fg); border-radius: 12px; margin: 3px; padding: 1px 8px; }
+.calendario .fc .fc-day-other .fc-daygrid-day-top { opacity: 0.45; }
+.calendario .fc .fc-daygrid-day.fc-day-today { background: var(--fc-today-bg-color); }
+.calendario .fc .fc-daygrid-day-frame { cursor: pointer; }
+.calendario .fc .fc-daygrid-more-link { color: var(--accent-strong); font-weight: 600; font-size: 11.5px; }
+.calendario .fc .fc-popover { background: var(--surface); border-color: var(--line); box-shadow: var(--shadow); border-radius: 10px; overflow: hidden; }
+.calendario .fc .fc-popover-header { background: var(--surface2); padding: 6px 10px; font-weight: 600; }
+.calendario .fc .fc-col-header-cell-cushion { text-decoration: none; }
+
+/* Dia por dia (celular): lista da semana */
+.calendario .fc .fc-list { border-radius: 8px; }
+.calendario .fc .fc-list-day-cushion { background: var(--surface2); padding: 8px 12px; }
+.calendario .fc .fc-list-day-text { color: var(--fg); font-weight: 600; text-decoration: none; text-transform: capitalize; }
+.calendario .fc .fc-list-event { cursor: pointer; }
+.calendario .fc .fc-list-event:hover td { background: var(--hover); }
+.calendario .fc .fc-list-event-time { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.calendario .fc .fc-list-event-dot { border-width: 6px; }
+.calendario .fc .fc-list-empty { background: var(--surface); color: var(--muted); }
+.ev-lista { gap: 4px; }
+.ev-lista .ev-status { opacity: 1; }
 .ev-hora { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; opacity: 0.9; }
 .ev-nome { font-size: 13px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; }
 .ev-status { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; opacity: 0.85; }

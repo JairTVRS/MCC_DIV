@@ -11,13 +11,20 @@ import { COLUNAS_RESERVA, FormReserva, type UsuarioCurto } from './FormReserva';
 import { ListaReservas } from './ListaReservas';
 import { dataLocal } from './formatos';
 
-type Visao = 'semana' | 'dia' | 'lista';
-const VISOES: { id: Visao; titulo: string }[] = [
+type Visao = 'mes' | 'semana' | 'dia' | 'lista' | 'dias';
+const FC: Record<Exclude<Visao, 'lista'>, VisaoCalendario> = { mes: 'dayGridMonth', semana: 'timeGridWeek', dia: 'timeGridDay', dias: 'listWeek' };
+const VISOES_PC: { id: Visao; titulo: string }[] = [
+  { id: 'mes', titulo: 'Mês' },
   { id: 'semana', titulo: 'Semana' },
   { id: 'dia', titulo: 'Dia' },
   { id: 'lista', titulo: 'Lista' },
 ];
+const VISOES_CELULAR: { id: Visao; titulo: string }[] = [
+  { id: 'dias', titulo: 'Dia por dia' },
+  { id: 'mes', titulo: 'Mês' },
+];
 const CELULAR = '(max-width: 760px)';
+
 // Se uma versão nova foi publicada com o app aberto, o arquivo antigo do calendário some do servidor:
 // em vez de erro, recarrega a página (que já busca a versão nova).
 const Calendario = lazy(() =>
@@ -27,35 +34,41 @@ const Calendario = lazy(() =>
   }),
 );
 
-function visaoLembrada(): Visao {
+/** Visão lembrada por aparelho; padrão: Mês no computador, Dia por dia no celular. */
+function visaoLembrada(celular: boolean): Visao {
+  const opcoes = celular ? VISOES_CELULAR : VISOES_PC;
   try {
-    const v = localStorage.getItem('agenda-visao');
-    if (v === 'semana' || v === 'dia' || v === 'lista') return v;
+    const v = localStorage.getItem(celular ? 'agenda-visao-celular' : 'agenda-visao');
+    if (opcoes.some((o) => o.id === v)) return v as Visao;
   } catch {
     /* armazenamento indisponível */
   }
-  return window.matchMedia(CELULAR).matches ? 'lista' : 'semana';
+  return celular ? 'dias' : 'mes';
 }
 
-/** Agenda: visões Semana e Dia (arrastar e esticar no computador/tablet) e Lista. A visão de mês chega na etapa 6. */
+/** Agenda: Mês, Semana e Dia (arrastar no computador/tablet), Lista; no celular, Dia por dia e Mês. */
 export function Agenda() {
   const { tem } = useSessao();
   const [reservas, setReservas] = useState<Reserva[] | null>(null);
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioCurto[]>([]);
-  const [visao, setVisao] = useState<Visao>(visaoLembrada);
-  const [titulo, setTitulo] = useState('');
-  const [dataAtual, setDataAtual] = useState<Date>(() => new Date());
   const [celular, setCelular] = useState(() => window.matchMedia(CELULAR).matches);
+  const [visao, setVisao] = useState<Visao>(() => visaoLembrada(window.matchMedia(CELULAR).matches));
+  const [titulo, setTitulo] = useState('');
+  const [periodo, setPeriodo] = useState<{ inicio: Date; fim: Date }>(() => ({ inicio: new Date(), fim: new Date() }));
   const [aberta, setAberta] = useState<{ reserva: Reserva | null; dia?: string } | null>(null);
   const [mudanca, setMudanca] = useState<Mudanca | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const cal = useRef<FullCalendar>(null);
 
+  // Ao passar de computador para celular (ou o contrário), troca para a visão daquele aparelho.
   useEffect(() => {
     const m = window.matchMedia(CELULAR);
-    const f = () => setCelular(m.matches);
+    const f = () => {
+      setCelular(m.matches);
+      setVisao(visaoLembrada(m.matches));
+    };
     m.addEventListener('change', f);
     return () => m.removeEventListener('change', f);
   }, []);
@@ -101,30 +114,31 @@ export function Agenda() {
   const nomePessoa = useCallback((id: string) => pessoas.find((p) => p.id === id)?.nome ?? '(pessoa excluída)', [pessoas]);
   const nomeUsuario = (id: string) => usuarios.find((u) => u.id === id)?.nome ?? '—';
 
-  function trocarVisao(v: Visao) {
+  function trocarVisao(v: Visao, data?: Date) {
     setVisao(v);
     try {
-      localStorage.setItem('agenda-visao', v);
+      localStorage.setItem(celular ? 'agenda-visao-celular' : 'agenda-visao', v);
     } catch {
       /* armazenamento indisponível */
     }
-    if (v !== 'lista') cal.current?.getApi().changeView(v === 'semana' ? 'timeGridWeek' : 'timeGridDay');
+    if (v !== 'lista') cal.current?.getApi().changeView(FC[v], data);
   }
 
-  // "Nova reserva" pelo botão: o dia mostrado (visão Dia), hoje se estiver na semana mostrada, senão o domingo da semana.
+  // "Nova reserva" pelo botão: o dia mostrado na visão Dia; hoje, se estiver no período mostrado; senão, o primeiro dia dele.
   function diaParaNova(): string | undefined {
     if (visao === 'lista') return undefined;
-    if (visao === 'dia') return dataLocal(dataAtual.toISOString());
+    if (visao === 'dia') return dataLocal(periodo.inicio.toISOString());
     const hoje = new Date();
-    const fimSemana = new Date(dataAtual.getTime() + 7 * 86400000);
-    return dataLocal((hoje >= dataAtual && hoje < fimSemana ? hoje : dataAtual).toISOString());
+    return dataLocal((hoje >= periodo.inicio && hoje < periodo.fim ? hoje : periodo.inicio).toISOString());
   }
 
   if (!reservas) return <p className="note">Carregando…</p>;
   const vePagamento = tem('pagamentos.visualizar');
   const podeIncluir = tem('reservas.incluir');
+  const visoes = celular ? VISOES_CELULAR : VISOES_PC;
   const calendario = visao !== 'lista';
-  const visaoCal: VisaoCalendario = visao === 'dia' ? 'timeGridDay' : 'timeGridWeek';
+  const anterior = { mes: 'Mês anterior', semana: 'Semana anterior', dia: 'Dia anterior', dias: 'Semana anterior', lista: '' }[visao];
+  const proximo = { mes: 'Próximo mês', semana: 'Próxima semana', dia: 'Próximo dia', dias: 'Próxima semana', lista: '' }[visao];
 
   return (
     <div className={`pagina agenda${calendario ? ' com-calendario' : ''}`}>
@@ -134,10 +148,10 @@ export function Agenda() {
             <button className="btn peq" onClick={() => cal.current?.getApi().today()}>
               Hoje
             </button>
-            <button className="ib" onClick={() => cal.current?.getApi().prev()} aria-label={visao === 'dia' ? 'Dia anterior' : 'Semana anterior'}>
+            <button className="ib" onClick={() => cal.current?.getApi().prev()} aria-label={anterior}>
               <Icone nome="esq" />
             </button>
-            <button className="ib" onClick={() => cal.current?.getApi().next()} aria-label={visao === 'dia' ? 'Próximo dia' : 'Próxima semana'}>
+            <button className="ib" onClick={() => cal.current?.getApi().next()} aria-label={proximo}>
               <Icone nome="dir" />
             </button>
             <h3 className="agenda-titulo">{titulo}</h3>
@@ -145,7 +159,7 @@ export function Agenda() {
         )}
         <span className="sp" />
         <div className="segmentos" role="group" aria-label="Visão da agenda">
-          {VISOES.map((v) => (
+          {visoes.map((v) => (
             <button key={v.id} aria-pressed={visao === v.id} onClick={() => trocarVisao(v.id)}>
               {v.titulo}
             </button>
@@ -165,24 +179,26 @@ export function Agenda() {
       )}
 
       {calendario ? (
-        <div className="calendario">
+        <div className={`calendario cal-${visao}`}>
           <Suspense fallback={<p className="note">Carregando calendário…</p>}>
-          <Calendario
-            ref={cal}
-            reservas={reservas}
-            visao={visaoCal}
-            dataInicial={dataAtual}
-            editavel={tem('reservas.alterar') && !celular}
-            vePagamento={vePagamento}
-            nomePessoa={nomePessoa}
-            onPeriodo={(t, inicio) => {
-              setTitulo(t);
-              setDataAtual(inicio);
-            }}
-            onAbrir={(r) => setAberta({ reserva: r })}
-            onDiaVazio={(dia) => podeIncluir && setAberta({ reserva: null, dia: dataLocal(dia.toISOString()) })}
-            onMudanca={setMudanca}
-          />
+            <Calendario
+              key={celular ? 'celular' : 'computador'}
+              ref={cal}
+              reservas={reservas}
+              visao={FC[visao]}
+              dataInicial={periodo.inicio}
+              editavel={tem('reservas.alterar') && !celular}
+              vePagamento={vePagamento}
+              nomePessoa={nomePessoa}
+              onPeriodo={(t, inicio, fim) => {
+                setTitulo(t);
+                setPeriodo({ inicio, fim });
+              }}
+              onAbrir={(r) => setAberta({ reserva: r })}
+              onDiaVazio={(dia) => podeIncluir && setAberta({ reserva: null, dia: dataLocal(dia.toISOString()) })}
+              onIrParaDia={(dia) => trocarVisao(celular ? 'dias' : 'dia', dia)}
+              onMudanca={setMudanca}
+            />
           </Suspense>
         </div>
       ) : (
@@ -190,7 +206,7 @@ export function Agenda() {
           <ListaReservas reservas={reservas} nomePessoa={nomePessoa} nomeUsuario={nomeUsuario} vePagamento={vePagamento} onAbrir={(r) => setAberta({ reserva: r })} />
         </section>
       )}
-      {calendario && celular && <p className="note">No celular, toque na reserva para abrir. Arrastar e esticar funcionam no computador e no tablet.</p>}
+      {calendario && celular && <p className="note">Toque na reserva para abrir. Arrastar funciona no computador e no tablet.</p>}
 
       {aberta && (
         <FormReserva
