@@ -149,8 +149,11 @@ export async function carregarContexto(locacaoId?: string): Promise<Contexto> {
     perfis: mapa(pf.data as { id: string; nome: string }[]),
     formas: mapa(fo.data as { id: string; nome: string }[]),
     prazos: mapa(pr.data as { id: string; nome: string }[]),
-    // "Agenda > Incluir"
-    funcoes: new Map(funcoes.map((f) => [f.codigo, f.pai ? `${rotulo.get(f.pai) ?? f.pai} > ${f.rotulo}` : f.rotulo])),
+    // "Agenda > Incluir" (e as funções que saíram da árvore, para o histórico antigo continuar legível)
+    funcoes: new Map([
+      ['pessoas.excluir', 'Pessoas > Excluir'],
+      ...funcoes.map((f): [string, string] => [f.codigo, f.pai ? `${rotulo.get(f.pai) ?? f.pai} > ${f.rotulo}` : f.rotulo]),
+    ]),
     parcelas: new Map(((pa.data ?? []) as { id: string; numero: number; tipo: string; valor: number; vencimento: string }[]).map((p) => [p.id, p])),
   };
 }

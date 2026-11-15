@@ -146,13 +146,18 @@ export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo
               </button>
             ))}
           <span className="sp" />
-          <button type="button" className="btn" onClick={onFechar} disabled={ocupado}>
-            {editavel ? 'Cancelar' : 'Fechar'}
-          </button>
-          {editavel && (
-            <button type="submit" className="btn pri" disabled={ocupado || !nome.trim() || !tipo}>
-              {ocupado ? 'Salvando…' : 'Salvar'}
-            </button>
+          {/* Na confirmação da inativação, só Voltar e Confirmar (o rodapé não quebra linha). */}
+          {!confirmarInativar && (
+            <>
+              <button type="button" className="btn" onClick={onFechar} disabled={ocupado}>
+                {editavel ? 'Cancelar' : 'Fechar'}
+              </button>
+              {editavel && (
+                <button type="submit" className="btn pri" disabled={ocupado || !nome.trim() || !tipo}>
+                  {ocupado ? 'Salvando…' : 'Salvar'}
+                </button>
+              )}
+            </>
           )}
         </div>
       </form>
