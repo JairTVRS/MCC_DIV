@@ -14,6 +14,24 @@ export function resumoPrazo(p: Pick<PrazoPagamento, 'parcelas'>): string {
   return p.parcelas.map((x) => `${x.dias === 0 ? 'na hora' : `${x.dias} dias`} · ${fmtPct(x.percentual)}%`).join(' — ');
 }
 
+/**
+ * Nome do prazo, espelho das parcelas (mesma regra da função nome_prazo do banco, que é quem grava):
+ * "À vista" · "30 dias" · "30/60/90" · "30% antecipado + 30/60/90" · "30 dias 40% / 60 dias 60%".
+ */
+export function nomePrazo(parcelas: { dias: number; percentual: number }[]): string {
+  const antecipado = parcelas.filter((p) => p.dias === 0).reduce((s, p) => s + p.percentual, 0);
+  const resto = parcelas.filter((p) => p.dias > 0);
+  if (resto.length === 0) return 'À vista';
+  const pcts = resto.map((p) => p.percentual);
+  const parte =
+    resto.length === 1
+      ? `${resto[0].dias} dias`
+      : Math.max(...pcts) - Math.min(...pcts) <= 0.02
+        ? resto.map((p) => p.dias).join('/')
+        : resto.map((p) => `${p.dias} dias ${fmtPct(p.percentual)}%`).join(' / ');
+  return antecipado > 0 ? `${fmtPct(antecipado)}% antecipado + ${parte}` : parte;
+}
+
 /** Cadastro de prazos de pagamento: nome + parcelas em dias (a partir da pré-reserva) e % do valor. */
 export function PrazosPagamento({ podeAlterar }: { podeAlterar: boolean }) {
   const [lista, setLista] = useState<PrazoPagamento[] | null>(null);
@@ -111,6 +129,7 @@ export function PrazosPagamento({ podeAlterar }: { podeAlterar: boolean }) {
       {editando && (
         <EditorPrazo
           prazo={editando === 'novo' ? null : editando}
+          outros={lista.filter((p) => editando === 'novo' || p.id !== editando.id).map((p) => p.nome)}
           proximaOrdem={Math.max(0, ...lista.map((p) => p.ordem)) + 1}
           onFechar={() => setEditando(null)}
           onSalvo={() => {
@@ -123,50 +142,66 @@ export function PrazosPagamento({ podeAlterar }: { podeAlterar: boolean }) {
   );
 }
 
-function EditorPrazo({ prazo, proximaOrdem, onFechar, onSalvo }: { prazo: PrazoPagamento | null; proximaOrdem: number; onFechar: () => void; onSalvo: () => void }) {
-  const [nome, setNome] = useState(prazo?.nome ?? '');
+/**
+ * Divide 100% entre as parcelas: se a 1ª for antecipada (0 dias), ela fica como está e o resto
+ * é dividido entre as outras; senão, tudo é dividido igualmente. Os centavos vão para a última.
+ */
+function dividir(linhas: Linha[]): Linha[] {
+  if (linhas.length === 0) return linhas;
+  const mantem = linhas.length > 1 && lerNum(linhas[0].dias) === 0 ? Math.min(99.99, Math.max(0, lerNum(linhas[0].percentual) || 0)) : null;
+  const inicio = mantem === null ? 0 : 1;
+  const resto = 100 - (mantem ?? 0);
+  const n = linhas.length - inicio;
+  const parte = Math.floor((resto / n) * 100) / 100;
+  return linhas.map((l, k) =>
+    k < inicio ? { ...l, percentual: fmtPct(mantem!) } : { ...l, percentual: fmtPct(k === linhas.length - 1 ? Math.round((resto - parte * (n - 1)) * 100) / 100 : parte) },
+  );
+}
+
+function EditorPrazo(props: { prazo: PrazoPagamento | null; outros: string[]; proximaOrdem: number; onFechar: () => void; onSalvo: () => void }) {
+  const { prazo, outros, proximaOrdem, onFechar, onSalvo } = props;
   const [linhas, setLinhas] = useState<Linha[]>(
     prazo ? prazo.parcelas.map((p) => ({ dias: String(p.dias), percentual: fmtPct(p.percentual) })) : [{ dias: '30', percentual: '100' }],
   );
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  const soma = linhas.reduce((s, l) => s + (lerNum(l.percentual) || 0), 0);
+  // Conferência linha a linha: dias inteiros e crescentes (sem repetir), % maior que zero, soma 100%.
+  const parcelas = linhas.map((l) => ({ dias: Math.trunc(lerNum(l.dias)), percentual: Math.round(lerNum(l.percentual) * 100) / 100 }));
+  const diasRuim = parcelas.map((p, i) => l_vazio(linhas[i].dias) || !Number.isFinite(p.dias) || p.dias < 0 || (i > 0 && p.dias <= parcelas[i - 1].dias));
+  const pctRuim = parcelas.map((p, i) => l_vazio(linhas[i].percentual) || !(p.percentual > 0));
+  const soma = parcelas.reduce((s, p) => s + (p.percentual || 0), 0);
   const somaOk = Math.abs(soma - 100) <= 0.01;
+  const linhasOk = !diasRuim.some(Boolean) && !pctRuim.some(Boolean);
+  const nome = linhasOk ? nomePrazo(parcelas) : '';
+  const repetido = !!nome && outros.some((o) => o.toLowerCase() === nome.toLowerCase());
+  const pronto = linhasOk && somaOk && !repetido;
+  const motivo = diasRuim.some(Boolean)
+    ? 'Os dias precisam ser crescentes, sem repetir (0 = na hora da pré-reserva).'
+    : pctRuim.some(Boolean)
+      ? 'Cada parcela precisa de um % maior que zero. Use "Dividir igualmente".'
+      : !somaOk
+        ? `Os percentuais somam ${fmtPct(soma)}%; precisam somar 100%.`
+        : repetido
+          ? 'Já existe um prazo igual a este.'
+          : null;
 
   function mudar(i: number, campo: keyof Linha, valor: string) {
-    setLinhas((ls) => ls.map((l, k) => (k === i ? { ...l, [campo]: valor.replace(/[^\d,.]/g, '') } : l)));
-  }
-
-  // Mantém a 1ª linha (ex.: 50% antecipado) e divide o que falta entre as demais; os centavos vão para a última.
-  function dividirRestante() {
-    if (linhas.length < 2) return setLinhas([{ ...linhas[0], percentual: '100' }]);
-    const primeira = Math.min(100, lerNum(linhas[0].percentual) || 0);
-    const resto = 100 - primeira;
-    const n = linhas.length - 1;
-    const parte = Math.floor((resto / n) * 100) / 100;
-    setLinhas(
-      linhas.map((l, k) =>
-        k === 0 ? { ...l, percentual: fmtPct(primeira) } : { ...l, percentual: fmtPct(k === n ? Math.round((resto - parte * (n - 1)) * 100) / 100 : parte) },
-      ),
-    );
+    setLinhas((ls) => ls.map((l, k) => (k === i ? { ...l, [campo]: valor.replace(campo === 'dias' ? /\D/g : /[^\d,.]/g, '') } : l)));
   }
 
   async function salvar(e: FormEvent) {
     e.preventDefault();
+    if (!pronto) return;
     setErro(null);
-    const parcelas = linhas.map((l) => ({ dias: Math.trunc(lerNum(l.dias)), percentual: Math.round(lerNum(l.percentual) * 100) / 100 }));
-    if (!nome.trim()) return setErro('Informe o nome do prazo.');
-    if (parcelas.some((p) => !Number.isFinite(p.dias) || p.dias < 0 || !(p.percentual > 0))) return setErro('Cada parcela precisa de dias (0 ou mais) e percentual.');
-    if (parcelas.some((p, i) => i > 0 && p.dias < parcelas[i - 1].dias)) return setErro('Coloque as parcelas em ordem de dias.');
-    if (!somaOk) return setErro(`Os percentuais somam ${fmtPct(soma)}%; precisam somar 100%.`);
     setOcupado(true);
-    const dados = { nome: nome.trim(), parcelas };
+    // O banco grava o nome a partir das parcelas (o enviado aqui é só o mesmo cálculo).
+    const dados = { nome, parcelas };
     const { error } = prazo
       ? await supabase.from('prazos_pagamento').update(dados).eq('id', prazo.id)
       : await supabase.from('prazos_pagamento').insert({ ...dados, ordem: proximaOrdem });
     setOcupado(false);
-    if (error) return setErro(mensagemErro(error));
+    if (error) return setErro((error as { code?: string }).code === '23505' ? 'Já existe um prazo igual a este.' : mensagemErro(error));
     onSalvo();
   }
 
@@ -181,10 +216,12 @@ function EditorPrazo({ prazo, proximaOrdem, onFechar, onSalvo }: { prazo: PrazoP
           </button>
         </div>
         <div className="m-body">
-          <label className="campo">
-            <span className="rot">Nome *</span>
-            <input className="inp" value={nome} maxLength={60} autoFocus placeholder="Ex.: 50% antecipado + 30/60/90" onChange={(e) => setNome(e.target.value)} />
-          </label>
+          <div className="campo">
+            <span className="rot">Nome (gerado das parcelas)</span>
+            <div className={`nome-prazo${nome ? '' : ' vazio'}`} aria-live="polite">
+              {nome || 'Preencha as parcelas'}
+            </div>
+          </div>
           <div className="campo">
             <span className="rot">Parcelas</span>
             <table className="tabela-prazo">
@@ -201,13 +238,34 @@ function EditorPrazo({ prazo, proximaOrdem, onFechar, onSalvo }: { prazo: PrazoP
                   <tr key={i}>
                     <td>{i + 1}</td>
                     <td>
-                      <input className="inp" inputMode="numeric" value={l.dias} aria-label={`Dias da parcela ${i + 1}`} onChange={(e) => mudar(i, 'dias', e.target.value)} />
+                      <input
+                        className={`inp${diasRuim[i] ? ' invalido' : ''}`}
+                        inputMode="numeric"
+                        value={l.dias}
+                        aria-invalid={diasRuim[i]}
+                        aria-label={`Dias da parcela ${i + 1}`}
+                        autoFocus={i === 0 && !prazo}
+                        onChange={(e) => mudar(i, 'dias', e.target.value)}
+                      />
                     </td>
                     <td>
-                      <input className="inp" inputMode="decimal" value={l.percentual} aria-label={`Percentual da parcela ${i + 1}`} onChange={(e) => mudar(i, 'percentual', e.target.value)} />
+                      <input
+                        className={`inp${pctRuim[i] ? ' invalido' : ''}`}
+                        inputMode="decimal"
+                        value={l.percentual}
+                        aria-invalid={pctRuim[i]}
+                        aria-label={`Percentual da parcela ${i + 1}`}
+                        onChange={(e) => mudar(i, 'percentual', e.target.value)}
+                      />
                     </td>
                     <td>
-                      <button type="button" className="ib" onClick={() => setLinhas((ls) => ls.filter((_, k) => k !== i))} disabled={linhas.length === 1} aria-label={`Remover parcela ${i + 1}`}>
+                      <button
+                        type="button"
+                        className="ib"
+                        onClick={() => setLinhas((ls) => dividir(ls.filter((_, k) => k !== i)))}
+                        disabled={linhas.length === 1}
+                        aria-label={`Remover parcela ${i + 1}`}
+                      >
                         <Icone nome="trash" tamanho={16} />
                       </button>
                     </td>
@@ -220,21 +278,22 @@ function EditorPrazo({ prazo, proximaOrdem, onFechar, onSalvo }: { prazo: PrazoP
                 type="button"
                 className="btn peq"
                 disabled={linhas.length >= 36}
-                onClick={() => setLinhas((ls) => [...ls, { dias: String((lerNum(ls[ls.length - 1]?.dias) || 0) + 30), percentual: '0' }])}
+                onClick={() => setLinhas((ls) => dividir([...ls, { dias: String((lerNum(ls[ls.length - 1]?.dias) || 0) + 30), percentual: '' }]))}
+                title="Acrescenta uma parcela 30 dias depois da última e redivide os percentuais"
               >
                 <Icone nome="plus" tamanho={16} />
                 Parcela
               </button>
-              <button type="button" className="btn peq" onClick={dividirRestante} title="Mantém a 1ª parcela e divide o que falta igualmente entre as outras">
-                Dividir o restante igualmente
+              <button type="button" className="btn peq" onClick={() => setLinhas(dividir)} title="Antecipado (0 dias) fica como está; o resto é dividido igualmente">
+                Dividir igualmente
               </button>
               <span className={`soma-pct${somaOk ? ' ok' : ''}`}>Soma: {fmtPct(soma)}%</span>
             </div>
-            <p className="note">0 dias = paga na hora da pré-reserva (sinal/antecipado).</p>
+            <p className="note">0 dias = paga na hora da pré-reserva (sinal/antecipado). Ao incluir ou tirar parcela, os % são redivididos.</p>
           </div>
-          {erro && (
+          {(motivo || erro) && (
             <p className="msg-erro" role="alert">
-              {erro}
+              {erro ?? motivo}
             </p>
           )}
         </div>
@@ -243,11 +302,15 @@ function EditorPrazo({ prazo, proximaOrdem, onFechar, onSalvo }: { prazo: PrazoP
           <button type="button" className="btn" onClick={onFechar} disabled={ocupado}>
             Cancelar
           </button>
-          <button type="submit" className="btn pri" disabled={ocupado || !nome.trim() || !somaOk}>
+          <button type="submit" className="btn pri" disabled={ocupado || !pronto}>
             {ocupado ? 'Salvando…' : 'Salvar'}
           </button>
         </div>
       </form>
     </>
   );
+}
+
+function l_vazio(s: string): boolean {
+  return s.trim() === '';
 }

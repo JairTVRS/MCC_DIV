@@ -467,6 +467,9 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 .tabela-plano th, .tabela-prazo th { text-align: left; font-size: 11.5px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); padding: 4px 6px; }
 .tabela-plano td, .tabela-prazo td { padding: 4px 6px; vertical-align: middle; }
 .tabela-prazo td:first-child { width: 36px; color: var(--muted); font-weight: 600; }
+.nome-prazo { min-height: 40px; display: flex; align-items: center; padding: 8px 12px; border-radius: 8px; background: var(--surface2); border: 1px dashed var(--line); font-weight: 600; }
+.nome-prazo.vazio { color: var(--muted); font-weight: 400; }
+.inp.invalido { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger) inset; }
 .soma-pct { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--danger); font-variant-numeric: tabular-nums; }
 .soma-pct.ok { color: var(--pg-ok); }
 label.btn.arquivo { align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

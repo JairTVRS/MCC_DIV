@@ -284,12 +284,20 @@ ok((await as(A,`select * from listar_lixeira() where id='${pz2.id}'`))[0].detalh
 ok(!!await erro(()=>as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim) values($1,$1,'2026-12-10 00:00-03','2026-12-10 23:59-03')`,[pz2.id])),'pessoa na lixeira não entra em reserva nova');
 
 console.log('15. Pagamento: prazos, plano, reservado automático e devolução (v0.7.0)');
-ok((await as(A,`select nome from prazos_pagamento order by ordem`)).map(p=>p.nome).join('|')==='À vista|30 dias|50% antecipado + 30/60/90|30/45/60','prazos iniciais cadastrados');
+ok((await as(A,`select nome from prazos_pagamento order by ordem`)).map(p=>p.nome).join('|')==='À vista|30 dias|50% antecipado + 30/60/90|30/45/60','prazos iniciais com o nome gerado das parcelas');
+const [pzA]=await as(A,`insert into prazos_pagamento(nome,parcelas) values('Nome digitado errado','[{"dias":0,"percentual":30},{"dias":30,"percentual":23.33},{"dias":60,"percentual":23.33},{"dias":90,"percentual":23.34}]') returning nome`);
+ok(pzA.nome==='30% antecipado + 30/60/90','nome é o espelho das parcelas (o digitado é ignorado)');
+const [pzB]=await as(A,`insert into prazos_pagamento(nome,parcelas) values('x','[{"dias":30,"percentual":40},{"dias":60,"percentual":60}]') returning nome`);
+ok(pzB.nome==='30 dias 40% / 60 dias 60%','partes diferentes: o nome mostra o % de cada uma');
+ok(!!await erro(()=>as(A,`insert into prazos_pagamento(nome,parcelas) values('outro','[{"dias":30,"percentual":40},{"dias":60,"percentual":60}]')`)),'prazo igual a um já cadastrado é recusado');
+ok(!!await erro(()=>as(A,`insert into prazos_pagamento(nome,parcelas) values('y','[{"dias":30,"percentual":100},{"dias":60,"percentual":0}]')`)),'parcela com 0% é recusada');
+ok(!!await erro(()=>as(A,`insert into prazos_pagamento(nome,parcelas) values('z','[{"dias":30,"percentual":50},{"dias":30,"percentual":50}]')`)),'dias repetidos são recusados');
 e=await erro(()=>as(A,`insert into prazos_pagamento(nome,parcelas) values('Errado','[{"dias":30,"percentual":60}]')`));
 ok(!!e&&/somam 60.00%; precisam somar 100%/.test(e),'prazo que não soma 100% é recusado com a soma na mensagem');
 ok(!!await erro(()=>as(A,`insert into prazos_pagamento(nome,parcelas) values('Fora de ordem','[{"dias":60,"percentual":50},{"dias":30,"percentual":50}]')`)),'dias fora de ordem são recusados');
 ok(!!await erro(()=>as(C,`insert into prazos_pagamento(nome,parcelas) values('Gestor','[{"dias":0,"percentual":100}]')`)),'sem "Prazos de pagamento" não cadastra prazo');
 await as(A,`insert into prazos_pagamento(nome,parcelas,ordem) values('10/20','[{"dias":10,"percentual":50},{"dias":20,"percentual":50}]',5)`);
+ok((await su(`select nome from prazos_pagamento where ordem=5`))[0].nome==='10/20','nome "10/20" gerado');
 ok((await funcoesDe('Administrador')).includes('configuracoes.prazos'),'função nova "Prazos de pagamento" já liberada para o Administrador');
 
 const [pa]=await as(A,`insert into pessoas(nome,tipo) values('Paula Pagante','locatario') returning id`);
