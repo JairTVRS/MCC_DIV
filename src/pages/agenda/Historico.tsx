@@ -134,6 +134,8 @@ export function Historico({ locacaoId, pessoas, usuarios, onFechar }: { locacaoI
       const lista: Grupo[] = [];
       for (const e of (ev.data ?? []) as Evento[]) {
         if (e.campo && OCULTOS.has(e.campo)) continue;
+        // Parcela nasce com número 0 e o banco renumera em seguida: detalhe interno, não aparece.
+        if (e.campo === 'numero' && e.valor_anterior === '0') continue;
         const chave = `${e.data_hora}|${e.usuario_id}|${e.tabela}|${e.registro_id}|${e.acao}`;
         let g = lista.find((x) => x.chave === chave);
         if (!g) {
