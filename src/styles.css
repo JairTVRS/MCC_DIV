@@ -258,7 +258,8 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 /* Usuários e Grupos */
 .pagina.larga { max-width: 1120px; }
 .badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 8px; border-radius: 10px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 600; line-height: 1; }
-.nav button .badge { margin-left: auto; }
+.nav button { white-space: nowrap; }
+.nav button .badge { margin-left: auto; flex: none; }
 .btn.perigo { border-color: var(--danger); color: var(--danger); }
 .btn.perigo:hover { background: var(--danger); color: var(--surface); }
 .tag.mini { margin-left: 8px; font-size: 9.5px; padding: 1px 6px; vertical-align: 2px; }
