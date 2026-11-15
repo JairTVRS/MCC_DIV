@@ -26,7 +26,7 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - React 18 + Vite 5 + TypeScript, sem roteador (rotas por hash: `#agenda`, `#lista`, `#pessoas`, `#usuarios`, `#configuracoes`).
 - Supabase (projeto `rcxijihpzlsozfyxnkhy`): Postgres + RLS, Auth Google, Storage, Realtime, pg_cron.
 - Deploy: Cloudflare Pages, projeto `mcc-div` na conta retiroscasade → https://mcc-div.pages.dev. Publicação automática a cada push no `main`.
-- Google OAuth: projeto Google Cloud **MCCDIV**, em modo **Teste** (só usuários de teste entram).
+- Google OAuth: projeto Google Cloud **MCCDIV**, publicado (**Em produção**, externo): qualquer conta Google entra e cai na lista de espera.
 - Local: `.env.local` com `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (chave publishable). `npm run dev` → http://localhost:5173.
 
 ## Regras de negócio já no banco (migração v0.1.0)
@@ -54,7 +54,7 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - v0.3.0 — Etapa 3: Usuários e Grupos (lista de espera, usuários, grupos com árvore de permissões). v0.2.x — Etapa 2: Configurações, Meu perfil/Trocar foto, contador online, `/privacidade`.
 - Tela Lista / Relatório ainda é "em construção" (etapa 10).
 - Migrações 001 a 009 aplicadas no Supabase; v0.4.1 publicada no Cloudflare (15/11/2026). Testado no localhost: cadastro rápido de pessoa e pré-reserva na lista.
-- **Onde paramos (15/11/2026):** etapa 4 no ar, logo sem fundo e ícone da aba aplicados. Pendência do Jair: Branding no Google Cloud + Publicar app. Próximo passo: escopo da etapa 5 para aprovação.
+- **Onde paramos (15/11/2026):** etapa 4 no ar, logo sem fundo e ícone da aba aplicados. Google OAuth **em produção** (Branding com página inicial, `/privacidade` e domínios `mcc-div.pages.dev` + `rcxijihpzlsozfyxnkhy.supabase.co`; sem logotipo, para não exigir verificação). Próximo passo: escopo da etapa 5 para aprovação.
 - Servidor local: o Claude sobe e mantém o `npm run dev` na porta 5173 (a 5174 quebra o login Google).
 - Push: funciona daqui com `GCM_INTERACTIVE=never` (o repositório fixa a conta `JairTVRS` na config local).
 
@@ -67,5 +67,3 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 9. Relógios de log (reserva, usuário, geral) e lixeira.
 10. Lista/relatório com filtros e exportação.
 11. Painel de novidades, testes por perfil, ajustes visuais e publicação.
-
-Pendência fora do código: depois da página `/privacidade`, preencher Branding no Google Cloud (página inicial, política de privacidade, domínio `mcc-div.pages.dev`) e clicar em **Publicar app**.
