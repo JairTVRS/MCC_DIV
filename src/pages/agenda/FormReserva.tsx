@@ -119,6 +119,8 @@ export function FormReserva({ reserva, diaInicial, pessoas, usuarios, onPessoaNo
 
   async function salvar(e: FormEvent) {
     e.preventDefault();
+    // Só a aba Dados salva a reserva (Enter ou clique vindo da aba Pagamento não pode fechar o card).
+    if (aba !== 'dados') return;
     setErro(null);
     if (!locatario) return setErro('Escolha o locatário.');
     if (!locador) return setErro('Escolha o locador.');

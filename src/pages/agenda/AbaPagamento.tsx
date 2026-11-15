@@ -123,7 +123,7 @@ export function AbaPagamento({ reserva, onMudou }: { reserva: Reserva; onMudou: 
       <div className="secao-cab">
         <h4 className="pg-titulo">Parcelas</h4>
         {podePlano && (
-          <button className="btn peq" onClick={() => setPlano(true)}>
+          <button type="button" className="btn peq" onClick={() => setPlano(true)}>
             <Icone nome="edit" tamanho={16} />
             {parcelas.some((p) => !p.paga && !p.encerrada) ? 'Editar plano' : 'Montar plano pelo prazo'}
           </button>
@@ -149,19 +149,19 @@ export function AbaPagamento({ reserva, onMudou }: { reserva: Reserva; onMudou: 
                 <span className="parcela-sit">{sit}</span>
                 <span className="parcela-acoes">
                   {p.comprovante_id && (
-                    <button className="btn peq" onClick={() => void abrirComprovante(p.comprovante_id!).catch((e) => setErro(mensagemErro(e)))} title="Ver comprovante">
+                    <button type="button" className="btn peq" onClick={() => void abrirComprovante(p.comprovante_id!).catch((e) => setErro(mensagemErro(e)))} title="Ver comprovante">
                       <Icone nome="list" tamanho={16} />
                       Comprovante
                     </button>
                   )}
                   {p.paga && !p.comprovante_id && podePagar && (
-                    <button className="btn peq" onClick={() => setAnexando(p)}>
+                    <button type="button" className="btn peq" onClick={() => setAnexando(p)}>
                       <Icone nome="upload" tamanho={16} />
                       Anexar comprovante
                     </button>
                   )}
                   {!p.paga && !p.encerrada && podePagar && (
-                    <button className="btn peq pri" onClick={() => setPagando(p)}>
+                    <button type="button" className="btn peq pri" onClick={() => setPagando(p)}>
                       <Icone nome="check" tamanho={16} />
                       Registrar pagamento
                     </button>
@@ -169,15 +169,15 @@ export function AbaPagamento({ reserva, onMudou }: { reserva: Reserva; onMudou: 
                   {p.paga && podePagar &&
                     (desfazendo === p.id ? (
                       <>
-                        <button className="btn peq" onClick={() => setDesfazendo(null)}>
+                        <button type="button" className="btn peq" onClick={() => setDesfazendo(null)}>
                           Voltar
                         </button>
-                        <button className="btn peq perigo" onClick={() => void desfazer(p)}>
+                        <button type="button" className="btn peq perigo" onClick={() => void desfazer(p)}>
                           Confirmar
                         </button>
                       </>
                     ) : (
-                      <button className="btn peq" onClick={() => setDesfazendo(p.id)} title="Estorno: a parcela volta a ficar em aberto">
+                      <button type="button" className="btn peq" onClick={() => setDesfazendo(p.id)} title="Estorno: a parcela volta a ficar em aberto">
                         Desfazer
                       </button>
                     ))}
@@ -196,7 +196,7 @@ export function AbaPagamento({ reserva, onMudou }: { reserva: Reserva; onMudou: 
           <div className="secao-cab">
             <h4 className="pg-titulo">Devolução</h4>
             {podeDevolver && (
-              <button className="btn peq" onClick={() => setDevolvendo(true)}>
+              <button type="button" className="btn peq" onClick={() => setDevolvendo(true)}>
                 Registrar devolução
               </button>
             )}
@@ -217,7 +217,7 @@ export function AbaPagamento({ reserva, onMudou }: { reserva: Reserva; onMudou: 
                   </span>
                   <span className="parcela-acoes">
                     {d.comprovante_id && (
-                      <button className="btn peq" onClick={() => void abrirComprovante(d.comprovante_id!).catch((e) => setErro(mensagemErro(e)))}>
+                      <button type="button" className="btn peq" onClick={() => void abrirComprovante(d.comprovante_id!).catch((e) => setErro(mensagemErro(e)))}>
                         <Icone nome="list" tamanho={16} />
                         Comprovante
                       </button>
@@ -325,7 +325,7 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
       <div className="modal largo alto" role="dialog" aria-modal="true" aria-label="Plano de pagamento">
         <div className="m-head">
           <h2>Plano de pagamento</h2>
-          <button className="ib" onClick={onFechar} aria-label="Fechar" disabled={ocupado}>
+          <button type="button" className="ib" onClick={onFechar} aria-label="Fechar" disabled={ocupado}>
             <Icone nome="x" />
           </button>
         </div>
@@ -361,7 +361,7 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
                 ))}
               </select>
             </label>
-            <button className="btn" onClick={aplicarPrazo} disabled={!prazoId || aParcelar <= 0}>
+            <button type="button" className="btn" onClick={aplicarPrazo} disabled={!prazoId || aParcelar <= 0}>
               Gerar parcelas
             </button>
           </div>
@@ -408,7 +408,7 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
                     </select>
                   </td>
                   <td>
-                    <button className="ib" onClick={() => setLinhas((ls) => ls.filter((_, k) => k !== i))} aria-label={`Remover parcela ${i + 1}`}>
+                    <button type="button" className="ib" onClick={() => setLinhas((ls) => ls.filter((_, k) => k !== i))} aria-label={`Remover parcela ${i + 1}`}>
                       <Icone nome="trash" tamanho={16} />
                     </button>
                   </td>
@@ -449,10 +449,10 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
         </div>
         <div className="m-foot">
           <span className="sp" />
-          <button className="btn" onClick={onFechar} disabled={ocupado}>
+          <button type="button" className="btn" onClick={onFechar} disabled={ocupado}>
             Cancelar
           </button>
-          <button className="btn pri" onClick={() => void salvar()} disabled={ocupado}>
+          <button type="button" className="btn pri" onClick={() => void salvar()} disabled={ocupado}>
             {ocupado ? 'Salvando…' : 'Salvar plano'}
           </button>
         </div>
@@ -518,7 +518,7 @@ function RegistrarPagamento(props: {
       <div className="modal estreito alto" role="dialog" aria-modal="true" aria-label={soComprovante ? 'Anexar comprovante' : 'Registrar pagamento'}>
         <div className="m-head">
           <h2>{soComprovante ? 'Anexar comprovante' : 'Registrar pagamento'}</h2>
-          <button className="ib" onClick={onFechar} aria-label="Fechar" disabled={ocupado}>
+          <button type="button" className="ib" onClick={onFechar} aria-label="Fechar" disabled={ocupado}>
             <Icone nome="x" />
           </button>
         </div>
@@ -566,10 +566,10 @@ function RegistrarPagamento(props: {
         </div>
         <div className="m-foot">
           <span className="sp" />
-          <button className="btn" onClick={onFechar} disabled={ocupado}>
+          <button type="button" className="btn" onClick={onFechar} disabled={ocupado}>
             Cancelar
           </button>
-          <button className="btn pri" onClick={() => void salvar()} disabled={ocupado || (soComprovante && !arquivo)}>
+          <button type="button" className="btn pri" onClick={() => void salvar()} disabled={ocupado || (soComprovante && !arquivo)}>
             {ocupado ? 'Gravando…' : soComprovante ? 'Anexar' : 'Registrar pagamento'}
           </button>
         </div>
@@ -634,7 +634,7 @@ export function RegistrarDevolucao(props: { reservaId: string; recebido: number;
       <div className="modal estreito alto" role="dialog" aria-modal="true" aria-label="Registrar devolução">
         <div className="m-head">
           <h2>Registrar devolução</h2>
-          <button className="ib" onClick={onFechar} aria-label="Fechar" disabled={ocupado}>
+          <button type="button" className="ib" onClick={onFechar} aria-label="Fechar" disabled={ocupado}>
             <Icone nome="x" />
           </button>
         </div>
@@ -683,10 +683,10 @@ export function RegistrarDevolucao(props: { reservaId: string; recebido: number;
         </div>
         <div className="m-foot">
           <span className="sp" />
-          <button className="btn" onClick={onFechar} disabled={ocupado}>
+          <button type="button" className="btn" onClick={onFechar} disabled={ocupado}>
             Registrar depois
           </button>
-          <button className="btn pri" onClick={() => void salvar()} disabled={ocupado}>
+          <button type="button" className="btn pri" onClick={() => void salvar()} disabled={ocupado}>
             {ocupado ? 'Gravando…' : 'Registrar devolução'}
           </button>
         </div>
