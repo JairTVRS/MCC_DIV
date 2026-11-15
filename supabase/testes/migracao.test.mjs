@@ -307,10 +307,17 @@ await as(A,`update locacoes set status_compromisso='pre_reserva', pre_reserva_em
 const pre=(await su(`select pre_reserva_em from locacoes where id=$1`,[rp.id]))[0].pre_reserva_em;
 ok(pre!==null&&new Date(pre).getFullYear()>2020,'entrar em pré-reserva grava a data (o app não escolhe a data)');
 
-ok(!!await erro(()=>as(B,`select salvar_parcelas('${rp.id}','[{"valor":3000,"vencimento":"2027-01-01"}]')`)),'operador não monta plano de pagamento');
-await as(A,`select salvar_parcelas('${rp.id}','[{"valor":1500,"vencimento":"2026-12-01","tipo":"entrada"},{"valor":750,"vencimento":"2027-01-15"},{"valor":750,"vencimento":"2026-12-31"}]')`);
+const idPrazo=async(nome)=>(await su(`select id from prazos_pagamento where nome=$1`,[nome]))[0].id;
+const pz3=await idPrazo('30/45/60'), pz1=await idPrazo('30 dias');
+ok(!!await erro(()=>as(B,`select salvar_parcelas('${rp.id}','${pz3}','[{"valor":3000,"vencimento":"2027-01-01"}]')`)),'operador não monta plano de pagamento');
+e=await erro(()=>as(A,`select salvar_parcelas('${rp.id}','${pz3}','[{"valor":1500,"vencimento":"2026-12-01"},{"valor":1500,"vencimento":"2026-12-31"}]')`));
+ok(!!e&&/tem 3 parcela\(s\).*exatamente 3/.test(e),'plano com quantidade diferente do prazo é recusado');
+e=await erro(()=>as(A,`select salvar_parcelas('${rp.id}','${pz3}','[{"valor":1000,"vencimento":"2026-12-01"},{"valor":1000,"vencimento":"2026-12-31"},{"valor":500,"vencimento":"2027-01-15"}]')`));
+ok(!!e&&/somam R\$ 2\.500,00, mas precisam fechar R\$ 3\.000,00/.test(e),'plano que não fecha o valor final é recusado');
+await as(A,`select salvar_parcelas('${rp.id}','${pz3}','[{"valor":1500,"vencimento":"2026-12-01","tipo":"entrada"},{"valor":750,"vencimento":"2027-01-15"},{"valor":750,"vencimento":"2026-12-31"}]')`);
 let pp=await su(`select numero,valor::float v,vencimento::text d,tipo from parcelas where locacao_id=$1 and not excluido order by numero`,[rp.id]);
 ok(pp.length===3&&pp.map(x=>x.d).join(',')==='2026-12-01,2026-12-31,2027-01-15'&&pp[0].tipo==='entrada','plano grava 3 parcelas, numeradas por vencimento');
+ok((await su(`select prazo_id from locacoes where id=$1`,[rp.id]))[0].prazo_id===pz3,'a reserva guarda o prazo usado');
 const [p1v]=await su(`select id from parcelas where locacao_id=$1 and numero=1`,[rp.id]);
 await as(C,`update parcelas set paga=true where id='${p1v.id}'`);
 let st=(await su(`select status_compromisso, status_pagamento from locacoes where id=$1`,[rp.id]))[0];
@@ -318,9 +325,10 @@ ok(st.status_compromisso==='reservado'&&st.status_pagamento==='parcial','primeir
 ok((await su(`select pre_reserva_em from locacoes where id=$1`,[rp.id]))[0].pre_reserva_em!==null,'data da pré-reserva continua guardada');
 ok((await su(`select * from log_eventos where locacao_id=$1 and campo='status_compromisso' and valor_novo='reservado' and usuario_id=$2`,[rp.id,C])).length===1,'mudança automática para Reservado entra no log com quem pagou');
 
-await as(A,`select salvar_parcelas('${rp.id}','[{"valor":1500,"vencimento":"2027-01-05"}]')`);
+ok(!!await erro(()=>as(A,`select salvar_parcelas('${rp.id}','${pz3}','[{"valor":500,"vencimento":"2027-01-05"},{"valor":500,"vencimento":"2027-02-05"},{"valor":500,"vencimento":"2027-03-05"}]')`)),'com 1 paga, prazo de 3 aceita só 2 em aberto');
+await as(A,`select salvar_parcelas('${rp.id}','${pz3}','[{"valor":750,"vencimento":"2027-01-05"},{"valor":750,"vencimento":"2027-02-05"}]')`);
 pp=await su(`select numero,valor::float v,paga from parcelas where locacao_id=$1 and not excluido order by numero`,[rp.id]);
-ok(pp.length===2&&pp[0].paga&&pp[0].v===1500&&!pp[1].paga,'refazer o plano troca só as em aberto; a paga fica');
+ok(pp.length===3&&pp[0].paga&&pp[0].v===1500&&!pp[1].paga&&!pp[2].paga,'refazer o plano troca só as em aberto; a paga fica');
 ok((await as(A,`select * from listar_lixeira() where tabela='parcelas' and detalhe like '%Paula%'`)).length===0,'parcelas substituídas não aparecem na lixeira');
 
 const [g2]=await as(A,`insert into perfis(nome) values('Caixa') returning id`);
@@ -332,13 +340,13 @@ const [p2v]=await su(`select id from parcelas where locacao_id=$1 and numero=2`,
 ok(!!await erro(()=>as(G,`update parcelas set valor=1 where id='${p2v.id}'`)),'quem só marca pagamento não altera o valor da parcela');
 await as(G,`update parcelas set paga=true, pago_em='2026-11-20' where id='${p2v.id}'`);
 st=(await su(`select status_pagamento from locacoes where id=$1`,[rp.id]))[0];
-ok(st.status_pagamento==='pago','quem tem "Marcar parcela como paga" registra o pagamento (reserva Paga)');
+ok(st.status_pagamento==='parcial','quem tem "Marcar parcela como paga" registra o pagamento');
 await as(G,`update parcelas set paga=false where locacao_id='${rp.id}'`);
 st=(await su(`select status_compromisso, status_pagamento from locacoes where id=$1`,[rp.id]))[0];
 ok(st.status_compromisso==='cadastrado'&&st.status_pagamento==='pendente','pagamentos desfeitos e nada pago: volta para Cadastrado');
 
 const [rq]=await as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim,status_compromisso,valor_total) values($1,$2,'2027-01-09 08:00-03','2027-01-09 12:00-03','pre_reserva',800) returning id`,[pa.id,lr.id]);
-await as(A,`select salvar_parcelas('${rp.id}','[{"valor":1500,"vencimento":"2027-01-05"}]')`);
+await as(A,`select salvar_parcelas('${rp.id}','${pz3}','[{"valor":1500,"vencimento":"2027-01-05"},{"valor":750,"vencimento":"2027-02-05"},{"valor":750,"vencimento":"2027-03-05"}]')`);
 const [p3v]=await su(`select id from parcelas where locacao_id=$1 and not excluido and not paga order by numero limit 1`,[rp.id]);
 e=await erro(()=>as(C,`update parcelas set paga=true where id='${p3v.id}'`));
 ok(!!e&&/data já está ocupada pela reserva de Paula Pagante em 09\/01\/2027 \(08:00 às 12:00\)/.test(e),'pagamento que deixaria a data ocupada em duplicidade é recusado com o motivo');
@@ -346,11 +354,11 @@ ok((await su(`select paga from parcelas where id=$1`,[p3v.id]))[0].paga===false,
 await as(A,`select excluir_registro('locacoes','${rq.id}')`);
 
 await as(C,`update parcelas set paga=true where id='${p3v.id}'`);
-await as(A,`select salvar_parcelas('${rp.id}','[{"valor":500,"vencimento":"2027-01-08"}]')`);
+await as(A,`select salvar_parcelas('${rp.id}','${pz3}','[{"valor":750,"vencimento":"2027-01-08"},{"valor":750,"vencimento":"2027-02-08"}]')`);
 await as(A,`update locacoes set status_compromisso='cancelado' where id='${rp.id}'`);
 ok((await su(`select bool_and(encerrada) e from parcelas where locacao_id=$1 and not excluido and not paga`,[rp.id]))[0].e!==false,'cancelar encerra as parcelas em aberto');
 ok(!!await erro(()=>as(C,`update parcelas set paga=true where locacao_id='${rp.id}' and not paga and not excluido`)),'reserva cancelada não recebe pagamento');
-ok(!!await erro(()=>as(A,`select salvar_parcelas('${rp.id}','[]')`)),'reserva cancelada não muda o plano');
+ok(!!await erro(()=>as(A,`select salvar_parcelas('${rp.id}','${pz3}','[]')`)),'reserva cancelada não muda o plano');
 const [an]=await as(G,`insert into anexos(locacao_id,devolucao_id,nome_arquivo,caminho_storage,categoria,tamanho) values($1,null,'pix.pdf','x/pix.pdf','Comprovante',1000) returning id`,[rp.id]);
 ok(!!an.id,'quem marca pagamento anexa comprovante');
 ok(!!await erro(()=>as(G,`insert into anexos(locacao_id,nome_arquivo,caminho_storage,categoria,tamanho) values($1,'contrato.pdf','x/c.pdf','Contrato',1000)`,[rp.id])),'mas não outros anexos');
@@ -359,7 +367,7 @@ st=(await su(`select l.status_pagamento, d.valor_retido::float r from locacoes l
 ok(st.status_pagamento==='devolvido_parcial'&&st.r===500,'devolução parcial no cancelamento: pagos R$ 1.500, devolvidos R$ 1.000, retidos R$ 500');
 const [rd]=await as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim,valor_total,desconto,motivo_desconto) values($1,$2,'2027-02-06 00:00-03','2027-02-06 23:59-03',1000,500,'  Cliente antigo ') returning id, motivo_desconto`,[pa.id,lr.id]);
 ok(rd.motivo_desconto==='Cliente antigo','desconto com motivo gravado (sem espaços nas pontas)');
-await as(A,`select salvar_parcelas('${rd.id}','[{"valor":500,"vencimento":"2027-01-10"}]')`);
+await as(A,`select salvar_parcelas('${rd.id}','${pz1}','[{"valor":500,"vencimento":"2027-01-10"}]')`);
 await as(C,`update parcelas set paga=true where locacao_id='${rd.id}'`);
 ok((await su(`select status_pagamento from locacoes where id=$1`,[rd.id]))[0].status_pagamento==='pago','R$ 1.000 com R$ 500 de desconto: pagar R$ 500 deixa Pago');
 ok(!!await erro(()=>as(A,`update locacoes set desconto=1500 where id='${rd.id}'`)),'desconto maior que o valor é recusado');

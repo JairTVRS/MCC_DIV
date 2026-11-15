@@ -10,7 +10,7 @@ import { SeletorPessoa } from './SeletorPessoa';
 import { COMPROMISSO, PAGAMENTO, dataLocal, escreverReais, hojeLocal, horaLocal, lerReais, paraIso, reais } from './formatos';
 
 export const COLUNAS_RESERVA =
-  'id, locatario_id, locador_id, responsavel_id, inicio, fim, status_compromisso, status_pagamento, valor_total, desconto, motivo_desconto, pre_reserva_em, observacoes, criado_por, criado_em, alterado_por, alterado_em';
+  'id, locatario_id, locador_id, responsavel_id, inicio, fim, status_compromisso, status_pagamento, valor_total, desconto, motivo_desconto, pre_reserva_em, prazo_id, observacoes, criado_por, criado_em, alterado_por, alterado_em';
 
 /** Converte os números que o Supabase devolve como texto. */
 export const normalizarReserva = (x: unknown): Reserva => {

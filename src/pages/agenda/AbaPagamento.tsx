@@ -49,7 +49,7 @@ export function AbaPagamento({ reserva, onMudou }: { reserva: Reserva; onMudou: 
       supabase.from('parcelas').select('id, locacao_id, numero, tipo, valor, vencimento, forma_pagamento_id, paga, pago_em, comprovante_id, encerrada').eq('locacao_id', reserva.id).eq('excluido', false).order('numero'),
       supabase.from('devolucoes').select('id, locacao_id, valor_devolvido, valor_retido, data, forma_pagamento_id, motivo, comprovante_id, registrado_em').eq('locacao_id', reserva.id).order('registrado_em'),
       supabase.from('formas_pagamento').select('id, nome, ativo, ordem').order('ordem').order('nome'),
-      supabase.from('prazos_pagamento').select('id, nome, parcelas, ativo, ordem').eq('ativo', true).order('ordem').order('nome'),
+      supabase.from('prazos_pagamento').select('id, nome, parcelas, ativo, ordem').order('ordem').order('nome'),
     ]);
     const falha = p.error ?? d.error ?? f.error ?? z.error;
     if (falha) setErro(mensagemErro(falha));
@@ -128,7 +128,10 @@ export function AbaPagamento({ reserva, onMudou }: { reserva: Reserva; onMudou: 
       )}
 
       <div className="secao-cab">
-        <h4 className="pg-titulo">Parcelas</h4>
+        <h4 className="pg-titulo">
+          Parcelas
+          {reserva.prazo_id && <span className="pg-prazo">· {dados.prazos.find((p) => p.id === reserva.prazo_id)?.nome ?? 'prazo removido'}</span>}
+        </h4>
         {podePlano && (
           <button type="button" className="btn peq" onClick={() => setPlano(true)}>
             <Icone nome="edit" tamanho={16} />
@@ -267,7 +270,8 @@ export function AbaPagamento({ reserva, onMudou }: { reserva: Reserva; onMudou: 
 }
 
 // ---------------------------------------------------------------------------------------------
-// Plano de parcelas: gerado pelo prazo a partir da pré-reserva e ajustável linha a linha
+// Plano de parcelas: sempre pelo prazo cadastrado. A quantidade de parcelas é a do prazo
+// (menos as já pagas); vencimento, forma e valor são ajustáveis, e a última fecha o total sozinha.
 // ---------------------------------------------------------------------------------------------
 interface LinhaPlano {
   id: string | null;
@@ -275,55 +279,107 @@ interface LinhaPlano {
   vencimento: string;
   forma: string;
   tipo: 'entrada' | 'parcela';
+  dias: number;
 }
 
 function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: PrazoPagamento[]; formas: FormaPagamento[]; onFechar: () => void; onSalvo: () => void }) {
   const { reserva, parcelas, prazos, formas, onFechar, onSalvo } = props;
-  const pagas = parcelas.filter((p) => p.paga || p.encerrada);
+  const opcoes = prazos.filter((p) => p.ativo || p.id === reserva.prazo_id);
+  const pagas = parcelas.filter((p) => p.paga);
   const abertas = parcelas.filter((p) => !p.paga && !p.encerrada);
-  const pago = parcelas.filter((p) => p.paga).reduce((s, p) => s + p.valor, 0);
+  const pago = pagas.reduce((s, p) => s + p.valor, 0);
   const aParcelar = Math.max(0, Math.round((valorFinal(reserva) - pago) * 100) / 100);
-  const [prazoId, setPrazoId] = useState(prazos[0]?.id ?? '');
+  const prazoInicial = opcoes.find((p) => p.id === reserva.prazo_id) ?? opcoes[0];
+  const [prazoId, setPrazoId] = useState(prazoInicial?.id ?? '');
   const [base, setBase] = useState(reserva.pre_reserva_em ? dataLocal(reserva.pre_reserva_em) : hojeLocal());
-  const [formaPadrao, setFormaPadrao] = useState(formas[0]?.id ?? '');
-  const [linhas, setLinhas] = useState<LinhaPlano[]>(() =>
-    abertas.length
-      ? abertas.map((p) => ({ id: p.id, valor: escreverReais(p.valor), vencimento: p.vencimento, forma: p.forma_pagamento_id ?? '', tipo: p.tipo }))
-      : gerar(prazos[0], base, formas[0]?.id ?? ''),
-  );
+  const [formaPadrao, setFormaPadrao] = useState(abertas[0]?.forma_pagamento_id ?? formas[0]?.id ?? '');
+  const [linhas, setLinhas] = useState<LinhaPlano[]>(() => {
+    const partes = prazoInicial ? prazoInicial.parcelas.slice(pagas.length) : [];
+    // Plano já salvo com este prazo: abre com as parcelas em aberto como estão.
+    if (prazoInicial && reserva.prazo_id === prazoInicial.id && abertas.length === partes.length && abertas.length > 0) {
+      return abertas.map((p, i) => ({ id: p.id, valor: escreverReais(p.valor), vencimento: p.vencimento, forma: p.forma_pagamento_id ?? '', tipo: p.tipo, dias: partes[i].dias }));
+    }
+    return gerar(prazoInicial, base, formaPadrao);
+  });
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  function gerar(prazo: PrazoPagamento | undefined, dataBase: string, forma: string): LinhaPlano[] {
-    if (!prazo || aParcelar <= 0) return [];
+  const prazo = opcoes.find((p) => p.id === prazoId);
+  const restantes = prazo ? prazo.parcelas.length - pagas.length : 0;
+
+  // Parcelas do prazo que ainda faltam pagar; o valor a parcelar é repartido pelos % delas.
+  function gerar(p: PrazoPagamento | undefined, dataBase: string, forma: string): LinhaPlano[] {
+    if (!p || aParcelar <= 0) return [];
+    const partes = p.parcelas.slice(pagas.length);
+    const somaPct = partes.reduce((s, x) => s + x.percentual, 0);
     let usado = 0;
-    return prazo.parcelas.map((x, i) => {
-      const ultima = i === prazo.parcelas.length - 1;
-      const valor = ultima ? Math.round((aParcelar - usado) * 100) / 100 : Math.floor(((aParcelar * x.percentual) / 100) * 100) / 100;
+    return partes.map((x, i) => {
+      const ultima = i === partes.length - 1;
+      const valor = ultima ? Math.round((aParcelar - usado) * 100) / 100 : Math.floor(((aParcelar * x.percentual) / somaPct) * 100) / 100;
       usado += valor;
-      return { id: null, valor: escreverReais(valor), vencimento: somarDias(dataBase, x.dias), forma, tipo: x.dias === 0 && i === 0 ? 'entrada' : 'parcela' };
+      return {
+        id: abertas[i]?.id ?? null,
+        valor: escreverReais(valor),
+        vencimento: somarDias(dataBase, x.dias),
+        forma,
+        tipo: x.dias === 0 && pagas.length + i === 0 ? 'entrada' : 'parcela',
+        dias: x.dias,
+      };
     });
   }
 
-  // Ao gerar de novo, reaproveita os ids das parcelas em aberto (ficam como "alteradas" no histórico).
-  function aplicarPrazo() {
-    const novas = gerar(prazos.find((p) => p.id === prazoId), base, formaPadrao);
-    setLinhas(novas.map((l, i) => ({ ...l, id: abertas[i]?.id ?? null })));
+  function trocarPrazo(id: string) {
+    setPrazoId(id);
+    setLinhas(gerar(opcoes.find((p) => p.id === id), base, formaPadrao));
+  }
+  function trocarBase(d: string) {
+    setBase(d);
+    if (d) setLinhas((ls) => ls.map((l) => ({ ...l, vencimento: somarDias(d, l.dias) })));
+  }
+  function trocarForma(f: string) {
+    setFormaPadrao(f);
+    setLinhas((ls) => ls.map((l) => ({ ...l, forma: f })));
   }
 
-  const soma = linhas.reduce((s, l) => s + lerReais(l.valor), 0);
-  const dif = Math.round((aParcelar - soma) * 100) / 100;
-
-  function mudar(i: number, campo: keyof LinhaPlano, valor: string) {
-    setLinhas((ls) => ls.map((l, k) => (k === i ? { ...l, [campo]: campo === 'valor' ? valor.replace(/[^\d.,]/g, '') : valor } : l)));
+  // Ao mudar o valor de uma parcela, a última recalcula para fechar o total.
+  function mudarValor(i: number, texto: string) {
+    setLinhas((ls) => {
+      const novas = ls.map((l, k) => (k === i ? { ...l, valor: texto.replace(/[^\d.,]/g, '') } : l));
+      const ultima = novas.length - 1;
+      if (ultima > 0 && i !== ultima) {
+        const outras = novas.slice(0, ultima).reduce((s, l) => s + lerReais(l.valor), 0);
+        novas[ultima] = { ...novas[ultima], valor: escreverReais(Math.round((aParcelar - outras) * 100) / 100) };
+      }
+      return novas;
+    });
   }
+  function mudar(i: number, campo: 'vencimento' | 'forma', valor: string) {
+    setLinhas((ls) => ls.map((l, k) => (k === i ? { ...l, [campo]: valor } : l)));
+  }
+
+  const soma = Math.round(linhas.reduce((s, l) => s + lerReais(l.valor), 0) * 100) / 100;
+  const algumZero = linhas.some((l) => lerReais(l.valor) <= 0);
+  const fecha = Math.abs(soma - aParcelar) <= 0.004;
+  const problema = !opcoes.length
+    ? 'Cadastre um prazo em Configurações > Prazos de pagamento.'
+    : aParcelar <= 0
+      ? 'Nada a parcelar: o valor final já está pago (ou a reserva não tem valor).'
+      : restantes <= 0
+        ? `O prazo "${prazo?.nome}" tem ${prazo?.parcelas.length} parcela(s) e ${pagas.length} já foram pagas. Escolha um prazo com mais parcelas.`
+        : algumZero
+          ? 'Os valores passam o total: cada parcela precisa de valor maior que zero.'
+          : linhas.some((l) => !l.vencimento)
+            ? 'Preencha o vencimento de todas as parcelas.'
+            : !fecha
+              ? `As parcelas somam ${reais(soma)}; precisam fechar ${reais(aParcelar)}.`
+              : null;
 
   async function salvar() {
+    if (problema || !prazoId) return;
     setErro(null);
-    if (linhas.some((l) => !l.vencimento || lerReais(l.valor) <= 0)) return setErro('Cada parcela precisa de valor maior que zero e vencimento.');
     setOcupado(true);
     const plano = linhas.map((l) => ({ id: l.id, valor: lerReais(l.valor), vencimento: l.vencimento, forma_pagamento_id: l.forma || null, tipo: l.tipo }));
-    const { error } = await supabase.rpc('salvar_parcelas', { p_locacao: reserva.id, p_parcelas: plano });
+    const { error } = await supabase.rpc('salvar_parcelas', { p_locacao: reserva.id, p_prazo: prazoId, p_parcelas: plano });
     setOcupado(false);
     if (error) return setErro(mensagemErro(error));
     onSalvo();
@@ -342,27 +398,27 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
         <div className="m-body">
           <p className="note">
             A parcelar: <strong>{reais(aParcelar)}</strong> (valor final {reais(valorFinal(reserva))}
-            {pago > 0 ? ` − ${reais(pago)} já pagos` : ''}). Parcelas pagas não mudam.
+            {pago > 0 ? ` − ${reais(pago)} já pagos` : ''}). A quantidade de parcelas segue o prazo; parcelas pagas não mudam.
           </p>
           <div className="plano-gerar">
             <label className="campo">
               <span className="rot">Prazo</span>
-              <select className="inp" value={prazoId} onChange={(e) => setPrazoId(e.target.value)}>
-                {prazos.map((p) => (
+              <select className="inp" value={prazoId} onChange={(e) => trocarPrazo(e.target.value)} disabled={!opcoes.length}>
+                {opcoes.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.nome}
                   </option>
                 ))}
-                {prazos.length === 0 && <option value="">Nenhum prazo cadastrado</option>}
+                {!opcoes.length && <option value="">Nenhum prazo cadastrado</option>}
               </select>
             </label>
             <label className="campo">
               <span className="rot">Data base</span>
-              <input className="inp" type="date" value={base} onChange={(e) => setBase(e.target.value)} />
+              <input className="inp" type="date" value={base} onChange={(e) => trocarBase(e.target.value)} />
             </label>
             <label className="campo">
               <span className="rot">Forma de pagamento</span>
-              <select className="inp" value={formaPadrao} onChange={(e) => setFormaPadrao(e.target.value)}>
+              <select className="inp" value={formaPadrao} onChange={(e) => trocarForma(e.target.value)}>
                 {formas.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.nome}
@@ -370,8 +426,8 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
                 ))}
               </select>
             </label>
-            <button type="button" className="btn" onClick={aplicarPrazo} disabled={!prazoId || aParcelar <= 0}>
-              Gerar parcelas
+            <button type="button" className="btn" onClick={() => setLinhas(gerar(prazo, base, formaPadrao))} disabled={!prazo || aParcelar <= 0} title="Volta os valores e vencimentos ao que o prazo calcula">
+              Refazer pelo prazo
             </button>
             <p className="note plano-dica">
               {reserva.pre_reserva_em
@@ -382,93 +438,79 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
 
           {pagas.length > 0 && (
             <p className="note">
-              Já pagas/encerradas (não mudam): {pagas.map((p) => `${p.numero}ª ${reais(p.valor)}`).join(' · ')}
+              Já pagas (não mudam): {pagas.map((p) => `${p.numero}ª ${reais(p.valor)}`).join(' · ')}
             </p>
           )}
 
-          <table className="tabela-plano">
-            <thead>
-              <tr>
-                <th>Vencimento</th>
-                <th>Valor (R$)</th>
-                <th>Forma</th>
-                <th aria-label="Remover" />
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map((l, i) => (
-                <tr key={i}>
-                  <td>
-                    <input className="inp" type="date" value={l.vencimento} aria-label={`Vencimento da parcela ${i + 1}`} onChange={(e) => mudar(i, 'vencimento', e.target.value)} />
-                  </td>
-                  <td>
-                    <input
-                      className="inp"
-                      inputMode="decimal"
-                      value={l.valor}
-                      aria-label={`Valor da parcela ${i + 1}`}
-                      onChange={(e) => mudar(i, 'valor', e.target.value)}
-                      onBlur={() => mudar(i, 'valor', escreverReais(lerReais(l.valor)))}
-                    />
-                  </td>
-                  <td>
-                    <select className="inp" value={l.forma} aria-label={`Forma da parcela ${i + 1}`} onChange={(e) => mudar(i, 'forma', e.target.value)}>
-                      <option value="">—</option>
-                      {formas.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <button type="button" className="ib" onClick={() => setLinhas((ls) => ls.filter((_, k) => k !== i))} aria-label={`Remover parcela ${i + 1}`}>
-                      <Icone nome="trash" tamanho={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {linhas.length === 0 && (
+          {linhas.length > 0 && (
+            <table className="tabela-plano">
+              <thead>
                 <tr>
-                  <td colSpan={4} className="note">
-                    Nenhuma parcela em aberto. Gere pelo prazo ou inclua uma parcela.
-                  </td>
+                  <th>Parcela</th>
+                  <th>Vencimento</th>
+                  <th>Valor (R$)</th>
+                  <th>Forma</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-          <div className="acoes">
-            <button
-              className="btn peq"
-              disabled={linhas.length >= 36}
-              onClick={() =>
-                setLinhas((ls) => [
-                  ...ls,
-                  { id: null, valor: escreverReais(Math.max(0, dif)), vencimento: ls.length ? somarDias(ls[ls.length - 1].vencimento, 30) : base, forma: formaPadrao, tipo: 'parcela' },
-                ])
-              }
-            >
-              <Icone nome="plus" tamanho={16} />
-              Parcela
-            </button>
-          </div>
-          {erro && (
+              </thead>
+              <tbody>
+                {linhas.map((l, i) => {
+                  const ultima = i === linhas.length - 1 && linhas.length > 1;
+                  return (
+                    <tr key={i}>
+                      <td className="plano-n">
+                        {l.tipo === 'entrada' ? 'Entrada' : `${pagas.length + i + 1}ª`}
+                        <span>{l.dias === 0 ? 'na hora' : `${l.dias} dias`}</span>
+                      </td>
+                      <td>
+                        <input className="inp" type="date" value={l.vencimento} aria-label={`Vencimento da parcela ${i + 1}`} onChange={(e) => mudar(i, 'vencimento', e.target.value)} />
+                      </td>
+                      <td>
+                        <input
+                          className={`inp${lerReais(l.valor) <= 0 ? ' invalido' : ''}`}
+                          inputMode="decimal"
+                          value={l.valor}
+                          readOnly={ultima}
+                          title={ultima ? 'Calculada sozinha para fechar o total' : undefined}
+                          aria-label={`Valor da parcela ${i + 1}`}
+                          onChange={(e) => mudarValor(i, e.target.value)}
+                          onBlur={() => !ultima && mudarValor(i, escreverReais(lerReais(l.valor)))}
+                        />
+                      </td>
+                      <td>
+                        <select className="inp" value={l.forma} aria-label={`Forma da parcela ${i + 1}`} onChange={(e) => mudar(i, 'forma', e.target.value)}>
+                          <option value="">—</option>
+                          {formas.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          {linhas.length > 1 && <p className="note">A última parcela é calculada sozinha para fechar o total.</p>}
+          {(problema || erro) && (
             <p className="msg-erro" role="alert">
-              {erro}
+              {erro ?? problema}
             </p>
           )}
         </div>
         <div className="m-foot">
           {/* Soma sempre à vista, junto do Salvar. */}
-          <span className={`soma-pct plano-soma${Math.abs(dif) <= 0.004 ? ' ok' : ''}`}>
-            {linhas.length} {linhas.length === 1 ? 'parcela' : 'parcelas'} · {reais(soma)}{' '}
-            {Math.abs(dif) <= 0.004 ? '· fecha com o valor a parcelar' : dif > 0 ? `· faltam ${reais(dif)}` : `· passa ${reais(-dif)}`}
+          <span className={`soma-pct plano-soma${!problema ? ' ok' : ''}`}>
+            {linhas.length} {linhas.length === 1 ? 'parcela' : 'parcelas'}
+            {prazo ? ` de ${prazo.parcelas.length} do prazo` : ''} · {reais(soma)}
+            {fecha && linhas.length ? ' · fecha o valor' : ''}
           </span>
           <span className="sp" />
           <button type="button" className="btn" onClick={onFechar} disabled={ocupado}>
             Cancelar
           </button>
-          <button type="button" className="btn pri" onClick={() => void salvar()} disabled={ocupado}>
+          <button type="button" className="btn pri" onClick={() => void salvar()} disabled={ocupado || !!problema}>
             {ocupado ? 'Salvando…' : 'Salvar plano'}
           </button>
         </div>

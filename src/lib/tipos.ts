@@ -90,6 +90,8 @@ export interface Reserva {
   motivo_desconto: string | null;
   /** Quando entrou em Pré-reserva: data base dos prazos de pagamento. */
   pre_reserva_em: string | null;
+  /** Prazo de pagamento usado no plano de parcelas. */
+  prazo_id: string | null;
   observacoes: string | null;
   criado_por: string | null;
   criado_em: string;
