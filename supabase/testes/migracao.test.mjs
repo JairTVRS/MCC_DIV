@@ -422,6 +422,21 @@ ok(!!nv&&/^Parcela 1 · R\$ 3\.000,00 · vence \d\d\/\d\d\/\d{4} · reserva de M
 await as(B,`update notificacoes set lida=true where usuario_id='${B}' and not lida`);
 ok((await as(B,`select * from minhas_notificacoes(50)`)).every(n=>n.lida),'marcar todos como lidos');
 ok((await su(`select numero from versoes_app where numero='v0.8.0'`)).length===1,'novidades da v0.8.0 registradas');
+// Comprovante ligado a parcela paga não vai para a lixeira pela aba Anexos (016).
+await as(A,`select salvar_parcelas('${rx.id}','${pz1}','[{"valor":1200,"vencimento":"2027-02-01"}]')`);
+const [pxv]=await su(`select id from parcelas where locacao_id=$1 and not excluido`,[rx.id]);
+const [axc]=await as(A,`insert into anexos(locacao_id,parcela_id,nome_arquivo,caminho_storage,categoria,tamanho) values('${rx.id}','${pxv.id}','pix.png','x/pix.png','Comprovante',10) returning id`);
+await as(A,`update parcelas set paga=true, comprovante_id='${axc.id}' where id='${pxv.id}'`);
+e=await erro(()=>as(A,`select excluir_registro('anexos','${axc.id}')`));
+ok(!!e&&/comprovante da parcela 1/.test(e),'comprovante de parcela paga não sai pela aba Anexos (diz de qual parcela é)');
+await as(A,`update parcelas set paga=false, comprovante_id=null where id='${pxv.id}'`);
+await as(A,`select excluir_registro('anexos','${axc.id}')`);
+ok((await su(`select excluido from anexos where id=$1`,[axc.id]))[0].excluido===true,'pagamento desfeito: o comprovante solto pode ir para a lixeira');
+await as(A,`update parcelas set paga=true where id='${pxv.id}'`);
+const [axd]=await as(A,`insert into anexos(locacao_id,parcela_id,nome_arquivo,caminho_storage,categoria,tamanho) values('${rx.id}','${pxv.id}','pix2.png','x/pix2.png','Comprovante',10) returning id`);
+await as(A,`update parcelas set comprovante_id='${axd.id}' where id='${pxv.id}'`);
+await as(A,`select excluir_registro('locacoes','${rx.id}')`);
+ok((await su(`select excluido from anexos where id=$1`,[axd.id]))[0].excluido===true,'excluir a reserva leva junto o comprovante em uso');
 
 console.log(falhas?`\n${falhas} FALHA(S)`:'\nTODOS OS TESTES PASSARAM');
 process.exit(falhas?1:0);

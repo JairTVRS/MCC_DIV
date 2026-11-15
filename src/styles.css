@@ -691,3 +691,5 @@ textarea.inp { resize: vertical; min-height: 72px; }
   .lista-anexos li { flex-wrap: wrap; }
   .inp.anexo-cat { max-width: none; flex: 1; }
 }
+.ib.anexo-trava { color: var(--muted); cursor: help; opacity: 0.7; }
+.ib.anexo-trava:hover { background: none; border-color: transparent; }

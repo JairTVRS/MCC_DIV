@@ -30,7 +30,7 @@ export function AbaAnexos({ reserva, usuarios, onMudou }: { reserva: Reserva; us
   const { tem } = useSessao();
   const [anexos, setAnexos] = useState<Anexo[] | null>(null);
   const [categorias, setCategorias] = useState<CategoriaAnexo[]>([]);
-  const [parcelas, setParcelas] = useState<Map<string, string>>(new Map());
+  const [emUso, setEmUso] = useState<Map<string, string>>(new Map());
   const [miniaturas, setMiniaturas] = useState<Map<string, string>>(new Map());
   const [categoriaEnvio, setCategoriaEnvio] = useState('');
   const [enviando, setEnviando] = useState<string | null>(null);
@@ -44,18 +44,24 @@ export function AbaAnexos({ reserva, usuarios, onMudou }: { reserva: Reserva; us
   const podeExcluir = tem('anexos.excluir');
 
   const carregar = useCallback(async () => {
-    const [a, c, p] = await Promise.all([
+    const [a, c, p, d] = await Promise.all([
       supabase.from('anexos').select(COLUNAS).eq('locacao_id', reserva.id).eq('excluido', false).order('enviado_em', { ascending: false }),
       supabase.from('categorias_anexo').select('id, nome, ativo, ordem, sistema').order('ordem').order('nome'),
-      supabase.from('parcelas').select('id, numero, tipo').eq('locacao_id', reserva.id),
+      supabase.from('parcelas').select('id, numero, tipo, comprovante_id').eq('locacao_id', reserva.id).eq('excluido', false),
+      supabase.from('devolucoes').select('comprovante_id').eq('locacao_id', reserva.id),
     ]);
+    // Comprovante ligado a parcela ou devolução só sai pela aba Pagamento (o banco também trava).
+    const uso = new Map<string, string>();
+    for (const x of (p.data ?? []) as { numero: number; tipo: string; comprovante_id: string | null }[])
+      if (x.comprovante_id) uso.set(x.comprovante_id, x.tipo === 'entrada' ? 'Comprovante da entrada' : `Comprovante da parcela ${x.numero}`);
+    for (const x of (d.data ?? []) as { comprovante_id: string | null }[]) if (x.comprovante_id) uso.set(x.comprovante_id, 'Comprovante da devolução');
+    setEmUso(uso);
     if (a.error) setErro(mensagemErro(a.error));
     const lista = (a.data ?? []) as Anexo[];
     setAnexos(lista);
     const cats = (c.data ?? []) as CategoriaAnexo[];
     setCategorias(cats);
     setCategoriaEnvio((atual) => atual || cats.find((x) => x.ativo && !x.sistema)?.nome || '');
-    setParcelas(new Map((p.data ?? []).map((x: { id: string; numero: number; tipo: string }) => [x.id, x.tipo === 'entrada' ? 'Entrada' : `Parcela ${x.numero}`])));
     // Miniaturas das imagens: links temporários (o arquivo é privado).
     const imagens = lista.filter((x) => ehImagem(x.nome_arquivo));
     if (imagens.length) {
@@ -140,7 +146,7 @@ export function AbaAnexos({ reserva, usuarios, onMudou }: { reserva: Reserva; us
   if (!anexos) return <p className="note">Carregando…</p>;
   const nomeUsuario = (id: string | null) => usuarios.find((u) => u.id === id)?.nome ?? '—';
   const ativas = categorias.filter((c) => c.ativo);
-  const ligacao = (a: Anexo) => (a.parcela_id ? `Comprovante da ${parcelas.get(a.parcela_id)?.toLowerCase() ?? 'parcela'}` : a.devolucao_id ? 'Comprovante da devolução' : null);
+  const ligacao = (a: Anexo) => emUso.get(a.id) ?? (a.categoria === 'Comprovante' && (a.parcela_id || a.devolucao_id) ? 'Comprovante de pagamento desfeito' : null);
 
   return (
     <div className="anexos">
@@ -223,7 +229,11 @@ export function AbaAnexos({ reserva, usuarios, onMudou }: { reserva: Reserva; us
                 <span className="tag">{a.categoria}</span>
               )}
               {podeExcluir &&
-                (excluindo === a.id ? (
+                (emUso.has(a.id) ? (
+                  <span className="ib anexo-trava" title="Comprovante em uso: para tirá-lo, desfaça o pagamento na aba Pagamento.">
+                    <Icone nome="shield" tamanho={16} />
+                  </span>
+                ) : excluindo === a.id ? (
                   <span className="acoes">
                     <button type="button" className="btn peq" onClick={() => setExcluindo(null)}>
                       Voltar
