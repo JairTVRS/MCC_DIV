@@ -4,12 +4,25 @@ import { useSessao } from '../../auth/Sessao';
 import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
 import { supabase } from '../../lib/supabase';
-import type { Pessoa, Reserva } from '../../lib/tipos';
+import type { Pessoa, Reserva, StatusCompromisso } from '../../lib/tipos';
 import type { Mudanca, VisaoCalendario } from './Calendario';
 import { ConfirmarMudanca } from './ConfirmarMudanca';
 import { COLUNAS_RESERVA, FormReserva, normalizarReserva, type UsuarioCurto } from './FormReserva';
 import { ListaReservas } from './ListaReservas';
-import { dataLocal } from './formatos';
+import { COMPROMISSO, dataLocal } from './formatos';
+
+const STATUS: StatusCompromisso[] = ['cadastrado', 'pre_reserva', 'reservado', 'cancelado'];
+
+/** Status mostrados na agenda, lembrados no aparelho (padrão: todos). */
+function statusLembrados(): Set<StatusCompromisso> {
+  try {
+    const s = JSON.parse(localStorage.getItem('agenda-status') ?? 'null');
+    if (Array.isArray(s)) return new Set(s.filter((x): x is StatusCompromisso => STATUS.includes(x)));
+  } catch {
+    /* armazenamento indisponível */
+  }
+  return new Set(STATUS);
+}
 
 type Visao = 'mes' | 'semana' | 'dia' | 'lista' | 'dias';
 const FC: Record<Exclude<Visao, 'lista'>, VisaoCalendario> = { mes: 'dayGridMonth', semana: 'timeGridWeek', dia: 'timeGridDay', dias: 'listWeek' };
@@ -60,7 +73,22 @@ export function Agenda() {
   const [mudanca, setMudanca] = useState<Mudanca | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [mostrar, setMostrar] = useState<Set<StatusCompromisso>>(statusLembrados);
   const cal = useRef<FullCalendar>(null);
+
+  function alternarStatus(s: StatusCompromisso) {
+    setMostrar((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(s)) novo.delete(s);
+      else novo.add(s);
+      try {
+        localStorage.setItem('agenda-status', JSON.stringify([...novo]));
+      } catch {
+        /* armazenamento indisponível */
+      }
+      return novo;
+    });
+  }
 
   // Ao passar de computador para celular (ou o contrário), troca para a visão daquele aparelho.
   useEffect(() => {
@@ -137,6 +165,7 @@ export function Agenda() {
   const podeIncluir = tem('reservas.incluir');
   const visoes = celular ? VISOES_CELULAR : VISOES_PC;
   const calendario = visao !== 'lista';
+  const visiveis = reservas.filter((r) => mostrar.has(r.status_compromisso));
   const anterior = { mes: 'Mês anterior', semana: 'Semana anterior', dia: 'Dia anterior', dias: 'Semana anterior', lista: '' }[visao];
   const proximo = { mes: 'Próximo mês', semana: 'Próxima semana', dia: 'Próximo dia', dias: 'Próxima semana', lista: '' }[visao];
 
@@ -172,6 +201,29 @@ export function Agenda() {
           </button>
         )}
       </div>
+      <div className="filtro-status" role="group" aria-label="Mostrar na agenda os status">
+        <span className="rot">Status</span>
+        {STATUS.map((s) => {
+          const qtd = reservas.filter((r) => r.status_compromisso === s).length;
+          return (
+            <button
+              key={s}
+              className={`chip-status st-${s}`}
+              aria-pressed={mostrar.has(s)}
+              onClick={() => alternarStatus(s)}
+              title={`${mostrar.has(s) ? 'Esconder' : 'Mostrar'} ${COMPROMISSO[s].rotulo}. ${COMPROMISSO[s].quando}`}
+            >
+              <span className="bolinha" aria-hidden="true" />
+              {COMPROMISSO[s].rotulo} · {qtd}
+            </button>
+          );
+        })}
+        {mostrar.size < STATUS.length && (
+          <button className="btn peq" onClick={() => STATUS.forEach((s) => !mostrar.has(s) && alternarStatus(s))}>
+            Mostrar todos
+          </button>
+        )}
+      </div>
       {erro && (
         <p className="msg-erro" role="alert">
           {erro}
@@ -184,7 +236,7 @@ export function Agenda() {
             <Calendario
               key={celular ? 'celular' : 'computador'}
               ref={cal}
-              reservas={reservas}
+              reservas={visiveis}
               visao={FC[visao]}
               dataInicial={periodo.inicio}
               editavel={tem('reservas.alterar') && !celular}
@@ -203,7 +255,7 @@ export function Agenda() {
         </div>
       ) : (
         <section className="secao">
-          <ListaReservas reservas={reservas} nomePessoa={nomePessoa} nomeUsuario={nomeUsuario} vePagamento={vePagamento} onAbrir={(r) => setAberta({ reserva: r })} />
+          <ListaReservas reservas={visiveis} nomePessoa={nomePessoa} nomeUsuario={nomeUsuario} vePagamento={vePagamento} onAbrir={(r) => setAberta({ reserva: r })} />
         </section>
       )}
       {calendario && celular && <p className="note">Toque na reserva para abrir. Arrastar funciona no computador e no tablet.</p>}

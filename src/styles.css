@@ -312,30 +312,47 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
   .arvore-funcao small { display: none; }
 }
 
-/* Status do compromisso (plano v1.8, item 11): cadastrado névoa tracejado, pré-reserva âmbar suave, reservado bronze, cancelado cinza riscado */
+/* Status do compromisso — uma cor bem distinta para cada (pedido do Jair):
+   Cadastrado azul-acinzentado tracejado · Pré-reserva âmbar · Reservado verde · Cancelado cinza riscado */
 :root {
-  --st-cad-bg: #e9e7e0; --st-cad-bd: #9d978c; --st-cad-fg: #4d4748;
-  --st-pre-bg: #f5e6c4; --st-pre-bd: #c99a3c; --st-pre-fg: #6d4f12;
-  --st-res-bg: #ead9c2; --st-res-bd: #ad926e; --st-res-fg: #5a4530;
-  --st-can-bg: #ecebe8; --st-can-bd: #b5b0aa; --st-can-fg: #7a7470;
+  --st-cad-bg: #e4eaf3; --st-cad-bd: #7486a3; --st-cad-fg: #2f3d57;
+  --st-pre-bg: #fbe6b0; --st-pre-bd: #d39614; --st-pre-fg: #634200;
+  --st-res-bg: #d5ebcd; --st-res-bd: #4a8a35; --st-res-fg: #1f4a12;
+  --st-can-bg: #ecebe8; --st-can-bd: #b0aaa3; --st-can-fg: #77716b;
   --pg-ok: #4f6e3f; --pg-parcial: #946812; --pg-pend: #a24b2b; --pg-dev: #7a7470;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --st-cad-bg: #343031; --st-cad-bd: #7d766f; --st-cad-fg: #d9d3c9;
-    --st-pre-bg: #47391b; --st-pre-bd: #c99a3c; --st-pre-fg: #f0d79d;
-    --st-res-bg: #4a3d2d; --st-res-bd: #dfcf93; --st-res-fg: #f1e3c3;
+    --st-cad-bg: #2b3341; --st-cad-bd: #8a9cbb; --st-cad-fg: #d6dfee;
+    --st-pre-bg: #4b3a12; --st-pre-bd: #e3ad3c; --st-pre-fg: #f8e2a6;
+    --st-res-bg: #22391d; --st-res-bd: #7fb56a; --st-res-fg: #d2edc7;
     --st-can-bg: #2e2b2c; --st-can-bd: #5f5a56; --st-can-fg: #a39c94;
     --pg-ok: #93b67c; --pg-parcial: #e2b65a; --pg-pend: #e4906d; --pg-dev: #a39c94;
   }
 }
 :root[data-theme='dark'] {
-  --st-cad-bg: #343031; --st-cad-bd: #7d766f; --st-cad-fg: #d9d3c9;
-  --st-pre-bg: #47391b; --st-pre-bd: #c99a3c; --st-pre-fg: #f0d79d;
-  --st-res-bg: #4a3d2d; --st-res-bd: #dfcf93; --st-res-fg: #f1e3c3;
+  --st-cad-bg: #2b3341; --st-cad-bd: #8a9cbb; --st-cad-fg: #d6dfee;
+  --st-pre-bg: #4b3a12; --st-pre-bd: #e3ad3c; --st-pre-fg: #f8e2a6;
+  --st-res-bg: #22391d; --st-res-bd: #7fb56a; --st-res-fg: #d2edc7;
   --st-can-bg: #2e2b2c; --st-can-bd: #5f5a56; --st-can-fg: #a39c94;
   --pg-ok: #93b67c; --pg-parcial: #e2b65a; --pg-pend: #e4906d; --pg-dev: #a39c94;
 }
+
+/* Filtro por status na agenda (os botões são também a legenda das cores) */
+.filtro-status { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.filtro-status > .rot { margin-right: 4px; }
+.chip-status { display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid var(--line); background: var(--surface); border-radius: 20px; padding: 4px 12px 4px 8px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.chip-status .bolinha { width: 12px; height: 12px; border-radius: 50%; border: 2px solid; flex: none; }
+.chip-status[aria-pressed='true'] { color: var(--fg); }
+.chip-status[aria-pressed='false'] { opacity: 0.55; text-decoration: line-through; }
+.chip-status.st-cadastrado[aria-pressed='true'] { background: var(--st-cad-bg); border-color: var(--st-cad-bd); border-style: dashed; color: var(--st-cad-fg); }
+.chip-status.st-pre_reserva[aria-pressed='true'] { background: var(--st-pre-bg); border-color: var(--st-pre-bd); color: var(--st-pre-fg); }
+.chip-status.st-reservado[aria-pressed='true'] { background: var(--st-res-bg); border-color: var(--st-res-bd); color: var(--st-res-fg); }
+.chip-status.st-cancelado[aria-pressed='true'] { background: var(--st-can-bg); border-color: var(--st-can-bd); color: var(--st-can-fg); }
+.chip-status.st-cadastrado .bolinha { background: var(--st-cad-bg); border-color: var(--st-cad-bd); border-style: dashed; }
+.chip-status.st-pre_reserva .bolinha { background: var(--st-pre-bg); border-color: var(--st-pre-bd); }
+.chip-status.st-reservado .bolinha { background: var(--st-res-bg); border-color: var(--st-res-bd); }
+.chip-status.st-cancelado .bolinha { background: var(--st-can-bg); border-color: var(--st-can-bd); }
 .status-chip { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; letter-spacing: 0.4px; padding: 3px 10px; border-radius: 20px; border: 1.5px solid; white-space: nowrap; }
 .status-chip.st-cadastrado { background: var(--st-cad-bg); border-color: var(--st-cad-bd); border-style: dashed; color: var(--st-cad-fg); }
 .status-chip.st-pre_reserva { background: var(--st-pre-bg); border-color: var(--st-pre-bd); color: var(--st-pre-fg); }
@@ -384,7 +401,7 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 .calendario .fc .fc-timegrid-slot-label-cushion, .calendario .fc .fc-timegrid-axis-cushion { padding: 0; }
 .calendario .fc .fc-timegrid-slot-label { border: 0; }
 .calendario .fc .fc-timegrid-col.fc-day-today { background: var(--fc-today-bg-color); }
-.calendario .fc-v-event { border-width: 1px 1px 1px 4px; border-radius: 6px; box-shadow: none; cursor: pointer; }
+.calendario .fc-v-event { border-width: 1px 1px 1px 5px; border-radius: 6px; box-shadow: none; cursor: pointer; }
 .calendario .fc-v-event .fc-event-main { padding: 4px 6px; }
 .calendario .fc-event.ev-cadastrado { --fc-event-bg-color: var(--st-cad-bg); --fc-event-border-color: var(--st-cad-bd); --fc-event-text-color: var(--st-cad-fg); border-style: dashed; }
 .calendario .fc-event.ev-pre_reserva { --fc-event-bg-color: var(--st-pre-bg); --fc-event-border-color: var(--st-pre-bd); --fc-event-text-color: var(--st-pre-fg); }
@@ -396,7 +413,7 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 .calendario .fc-timegrid-event .ev { position: sticky; top: 4px; }
 
 /* Mês: faixa por reserva, numa linha */
-.calendario .fc-h-event { border-width: 1px 1px 1px 3px; border-radius: 4px; cursor: pointer; }
+.calendario .fc-h-event { border-width: 1px 1px 1px 4px; border-radius: 4px; cursor: pointer; }
 .calendario .fc-h-event .fc-event-main { padding: 1px 5px; }
 .ev-linha { flex-direction: row; align-items: baseline; gap: 5px; white-space: nowrap; }
 .ev-linha .ev-nome { font-size: 12px; font-weight: 600; text-overflow: ellipsis; overflow: hidden; }
