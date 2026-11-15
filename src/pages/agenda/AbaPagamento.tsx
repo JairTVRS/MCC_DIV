@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useSessao } from '../../auth/Sessao';
 import { abrirComprovante, enviarComprovante, validarComprovante } from '../../lib/comprovantes';
 import { mensagemErro } from '../../lib/erros';
@@ -16,6 +17,12 @@ function somarDias(data: string, dias: number): string {
   const r = new Date(a, m - 1, d + dias);
   return `${r.getFullYear()}-${String(r.getMonth() + 1).padStart(2, '0')}-${String(r.getDate()).padStart(2, '0')}`;
 }
+
+/**
+ * Janelas da aba Pagamento abrem por cima de tudo (no body): dentro do card da reserva, que é
+ * centralizado com transform, elas ficariam presas ao tamanho dele.
+ */
+const porCima = (conteudo: ReactNode) => createPortal(conteudo, document.body);
 
 export const valorFinal = (r: Pick<Reserva, 'valor_total' | 'desconto'>) => Math.max(0, Math.round((num(r.valor_total) - num(r.desconto)) * 100) / 100);
 
@@ -236,10 +243,12 @@ export function AbaPagamento({ reserva, onMudou }: { reserva: Reserva; onMudou: 
         </p>
       )}
 
-      {plano && (
-        <EditorPlano reserva={reserva} parcelas={parcelas} prazos={dados.prazos} formas={formas.filter((f) => f.ativo)} onFechar={() => setPlano(false)} onSalvo={() => { setPlano(false); void aoMudar(); }} />
-      )}
-      {(pagando || anexando) && (
+      {plano &&
+        porCima(
+          <EditorPlano reserva={reserva} parcelas={parcelas} prazos={dados.prazos} formas={formas.filter((f) => f.ativo)} onFechar={() => setPlano(false)} onSalvo={() => { setPlano(false); void aoMudar(); }} />,
+        )}
+      {(pagando || anexando) &&
+        porCima(
         <RegistrarPagamento
           parcela={(pagando ?? anexando)!}
           soComprovante={!!anexando}
@@ -247,11 +256,12 @@ export function AbaPagamento({ reserva, onMudou }: { reserva: Reserva; onMudou: 
           avisoReservado={reserva.status_compromisso === 'cadastrado' || reserva.status_compromisso === 'pre_reserva'}
           onFechar={() => { setPagando(null); setAnexando(null); }}
           onSalvo={() => { setPagando(null); setAnexando(null); void aoMudar(); }}
-        />
-      )}
-      {devolvendo && (
-        <RegistrarDevolucao reservaId={reserva.id} recebido={pago - devolvido} formas={formas.filter((f) => f.ativo)} onFechar={() => setDevolvendo(false)} onSalvo={() => { setDevolvendo(false); void aoMudar(); }} />
-      )}
+        />,
+        )}
+      {devolvendo &&
+        porCima(
+          <RegistrarDevolucao reservaId={reserva.id} recebido={pago - devolvido} formas={formas.filter((f) => f.ativo)} onFechar={() => setDevolvendo(false)} onSalvo={() => { setDevolvendo(false); void aoMudar(); }} />,
+        )}
     </div>
   );
 }
@@ -322,7 +332,7 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
   return (
     <>
       <div className="scrim alto" onClick={ocupado ? undefined : onFechar} />
-      <div className="modal largo alto" role="dialog" aria-modal="true" aria-label="Plano de pagamento">
+      <div className="modal plano alto" role="dialog" aria-modal="true" aria-label="Plano de pagamento">
         <div className="m-head">
           <h2>Plano de pagamento</h2>
           <button type="button" className="ib" onClick={onFechar} aria-label="Fechar" disabled={ocupado}>
@@ -437,9 +447,6 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
               <Icone nome="plus" tamanho={16} />
               Parcela
             </button>
-            <span className={`soma-pct${Math.abs(dif) <= 0.004 ? ' ok' : ''}`}>
-              Soma {reais(soma)} {Math.abs(dif) <= 0.004 ? '· fecha com o valor a parcelar' : dif > 0 ? `· faltam ${reais(dif)}` : `· passa ${reais(-dif)}`}
-            </span>
           </div>
           {erro && (
             <p className="msg-erro" role="alert">
@@ -448,6 +455,11 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
           )}
         </div>
         <div className="m-foot">
+          {/* Soma sempre à vista, junto do Salvar. */}
+          <span className={`soma-pct plano-soma${Math.abs(dif) <= 0.004 ? ' ok' : ''}`}>
+            {linhas.length} {linhas.length === 1 ? 'parcela' : 'parcelas'} · {reais(soma)}{' '}
+            {Math.abs(dif) <= 0.004 ? '· fecha com o valor a parcelar' : dif > 0 ? `· faltam ${reais(dif)}` : `· passa ${reais(-dif)}`}
+          </span>
           <span className="sp" />
           <button type="button" className="btn" onClick={onFechar} disabled={ocupado}>
             Cancelar
