@@ -44,6 +44,7 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - (v0.2.0) Nome do usuário só muda com permissão de editar usuários; `foto_upload` precisa estar em `avatares/<id do usuário>/`; logos só do bucket `marca`; `tema_preferido` e `ultima_versao_vista` não entram no log.
 - (v0.2.0/v0.2.1/v0.3.0) Usuários online: canal privado de presença `online` no Realtime, com políticas em `realtime.messages` (select e insert, extensões broadcast e presence) para quem tem `online.visualizar`.
 - (v0.4.0) Pessoas: `tipo` locatario | locador | ambos. Reserva só aceita locatário/locador do tipo certo e fora da lixeira, e responsável ativo com `reservas.visualizar` (gatilho `pessoas_validas`). `conflito_reserva(inicio, fim, ignorar)` devolve o texto da reserva que ocupa o horário (a tela consulta antes de salvar).
+- Atualização do app (v0.4.0): o build gera `/versao.json` com um código único (`__BUILD_ID__`, ver `vite.config.ts`); o app confere a cada minuto e ao voltar para a aba e, se mudou, mostra "Atualizando app em 5…" no canto inferior direito e recarrega. O painel Novidades **não** abre sozinho: só ao clicar na versão (pedido do Jair).
 - Rotas: o app usa só `#hash`; `/privacidade` é o arquivo estático `public/privacidade.html` (não existe `_redirects`).
 
 ## Situação atual
@@ -51,8 +52,8 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - **v0.4.0** — Etapa 4 concluída: tela Pessoas (busca, filtro, cadastro com tipo locatário/locador/ambos) e formulário da reserva (abas Dados/Pagamento/Anexos/Comentários — só Dados funciona; seletor de pessoa com busca e cadastro rápido; responsável; 00:00–23:59; status com permissões; valor; resumo pago/total/%; aviso de conflito; excluir). Agenda provisória em lista por mês (Próximas/Anteriores/Todas) até as etapas 5–6.
 - v0.3.0 — Etapa 3: Usuários e Grupos (lista de espera, usuários, grupos com árvore de permissões). v0.2.x — Etapa 2: Configurações, Meu perfil/Trocar foto, contador online, `/privacidade`.
 - Tela Lista / Relatório ainda é "em construção" (etapa 10).
-- Migrações 001 a 007 aplicadas no Supabase; v0.3.0 publicada no Cloudflare (15/11/2026).
-- **Onde paramos (15/11/2026):** v0.4.0 pronta no `main` local, aguardando o Jair rodar a migração 008 antes do push (a tela usa `conflito_reserva` e o tipo `ambos`). Pendências do Jair: logos sem fundo e ícone (`Docs/Icones/`, já processados), Branding no Google Cloud + Publicar app.
+- Migrações 001 a 008 aplicadas no Supabase; v0.4.0 publicada no Cloudflare (15/11/2026). Testado no localhost: cadastro rápido de pessoa e pré-reserva na lista.
+- **Onde paramos (15/11/2026):** etapa 4 no ar. Pendências do Jair: logos sem fundo e ícone (`Docs/Icones/`, já processados), Branding no Google Cloud + Publicar app. Próximo passo: escopo da etapa 5 para aprovação.
 - Servidor local: o Claude sobe e mantém o `npm run dev` na porta 5173 (a 5174 quebra o login Google).
 - Push: funciona daqui com `GCM_INTERACTIVE=never` (o repositório fixa a conta `JairTVRS` na config local).
 

@@ -350,7 +350,13 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 /* Agenda provisória (lista) */
 .secao-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .mes { display: flex; flex-direction: column; gap: 8px; }
-.mes-titulo { margin: 6px 0 0; font-family: var(--serif); font-size: 20px; font-weight: 600; text-transform: capitalize; color: var(--accent-strong); }
+.mes-titulo { margin: 6px 0 0; font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--accent-strong); }
+
+/* Aviso de atualização do app (canto inferior direito) */
+.atualizando { position: fixed; z-index: 60; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 10px; background: var(--side); color: var(--side-fg); box-shadow: var(--shadow); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.atualizando .gira { display: flex; color: var(--side-active); animation: girar 1.4s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .atualizando .gira { animation: none; } }
 .reservas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .reserva { width: 100%; display: flex; align-items: center; gap: 14px; text-align: left; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line2); border-left: 5px solid; background: var(--surface); cursor: pointer; }
 .reserva:hover { background: var(--hover); }

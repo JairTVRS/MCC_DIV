@@ -61,7 +61,8 @@ export function Agenda() {
     .sort((a, b) => (filtro === 'anteriores' ? b.inicio.localeCompare(a.inicio) : a.inicio.localeCompare(b.inicio)));
   const meses = new Map<string, Reserva[]>();
   for (const r of visiveis) {
-    const chave = new Date(r.inicio).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const mes = new Date(r.inicio).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const chave = mes.charAt(0).toUpperCase() + mes.slice(1); // "Novembro de 2026"
     meses.set(chave, [...(meses.get(chave) ?? []), r]);
   }
   const nomePessoa = (id: string) => pessoas.find((p) => p.id === id)?.nome ?? '(pessoa excluída)';

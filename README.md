@@ -11,7 +11,7 @@ Web app para gerenciar as locações da casa de eventos: agenda contínua, reser
 
 | Versão | Data | Descrição |
 |---|---|---|
-| v0.4.0 | 15/11/2026 | Etapa 4: cadastro de pessoas (locatário, locador ou os dois) e da reserva (responsável, horário padrão 00:00–23:59, status, valor, resumo pago/total), aviso de conflito antes de salvar, agenda provisória em lista |
+| v0.4.0 | 15/11/2026 | Etapa 4: cadastro de pessoas (locatário, locador ou os dois) e da reserva (responsável, horário padrão 00:00–23:59, status, valor, resumo pago/total), aviso de conflito antes de salvar, agenda provisória em lista. Atualização do app: aviso "Atualizando app em 5…" no canto e recarga automática quando sai versão nova; Novidades só ao clicar na versão |
 | v0.3.0 | 15/11/2026 | Etapa 3: lista de espera com aprovação por grupo, usuários (busca, filtros, ativar/inativar, nome e grupo), grupos de usuários e árvore de permissões por módulo e função |
 | v0.2.2 | 13/11/2026 | Ícone da aba do navegador enviado à parte (imagem quadrada); sem ele, continua gerado a partir do logo |
 | v0.2.1 | 13/11/2026 | Correção do contador de usuários online (políticas do canal privado); o ícone aparece sempre e mostra quando o canal está indisponível |

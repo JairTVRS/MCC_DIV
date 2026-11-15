@@ -52,11 +52,6 @@ export function Casca() {
     return () => window.removeEventListener('hashchange', f);
   }, []);
 
-  // Depois de uma atualização, o painel de novidades abre sozinho uma vez para cada usuário.
-  useEffect(() => {
-    if (usuario && usuario.ultima_versao_vista !== APP_VERSION) void abrirNovidades();
-  }, [usuario?.id]);
-
   // Esc fecha o que estiver aberto por cima.
   useEffect(() => {
     const f = (e: KeyboardEvent) => {
@@ -72,6 +67,7 @@ export function Casca() {
     const { data } = await supabase.from('versoes_app').select('numero, data_publicacao, itens').order('data_publicacao', { ascending: false }).order('numero', { ascending: false });
     setNovidades((data ?? []) as VersaoApp[]);
   }
+  // O painel de novidades só abre quando a pessoa clica na versão; fechar registra a última versão vista.
   function fecharNovidades() {
     setNovidades(null);
     if (usuario && usuario.ultima_versao_vista !== APP_VERSION) void atualizarUsuario({ ultima_versao_vista: APP_VERSION });
