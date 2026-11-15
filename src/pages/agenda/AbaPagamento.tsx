@@ -24,6 +24,76 @@ function somarDias(data: string, dias: number): string {
  */
 const porCima = (conteudo: ReactNode) => createPortal(conteudo, document.body);
 
+/**
+ * Comprovante escolhido: miniatura (imagem) ou ícone de PDF com "Abrir", nome, tamanho,
+ * e os botões Trocar e Remover. Sem arquivo, mostra o botão de escolher.
+ */
+function CampoComprovante({ arquivo, onEscolher, onRemover, opcional }: { arquivo: File | null; onEscolher: (f: File | undefined) => void; onRemover: () => void; opcional: boolean }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!arquivo) return setUrl(null);
+    const u = URL.createObjectURL(arquivo);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [arquivo]);
+
+  const entrada = (texto: string) => (
+    <label className="btn peq arquivo">
+      <Icone nome="upload" tamanho={16} />
+      {texto}
+      <input
+        type="file"
+        accept="application/pdf,image/png,image/jpeg,image/webp"
+        hidden
+        onChange={(e) => {
+          onEscolher(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+    </label>
+  );
+
+  return (
+    <div className="campo">
+      <span className="rot">Comprovante{opcional ? ' (opcional)' : ''}</span>
+      {arquivo && url ? (
+        <div className="comprovante">
+          {arquivo.type.startsWith('image/') ? (
+            <a href={url} target="_blank" rel="noreferrer" className="comprovante-mini" title="Ver em tamanho real">
+              <img src={url} alt={`Prévia de ${arquivo.name}`} />
+            </a>
+          ) : (
+            <a href={url} target="_blank" rel="noreferrer" className="comprovante-mini pdf" title="Abrir o PDF">
+              PDF
+            </a>
+          )}
+          <div className="comprovante-tx">
+            <strong title={arquivo.name}>{arquivo.name}</strong>
+            <span>
+              {arquivo.size < 1048576 ? `${Math.max(1, Math.round(arquivo.size / 1024))} KB` : `${(arquivo.size / 1048576).toFixed(1)} MB`} ·{' '}
+              <a href={url} target="_blank" rel="noreferrer">
+                Abrir
+              </a>
+            </span>
+            <span className="acoes">
+              {entrada('Trocar')}
+              <button type="button" className="btn peq" onClick={onRemover}>
+                <Icone nome="trash" tamanho={16} />
+                Remover
+              </button>
+            </span>
+          </div>
+        </div>
+      ) : (
+        <>
+          {entrada('Escolher arquivo')}
+          <span className="note">PDF ou imagem, até 20 MB.</span>
+        </>
+      )}
+    </div>
+  );
+}
+
 export const valorFinal = (r: Pick<Reserva, 'valor_total' | 'desconto'>) => Math.max(0, Math.round((num(r.valor_total) - num(r.desconto)) * 100) / 100);
 
 interface Dados {
@@ -606,15 +676,7 @@ function RegistrarPagamento(props: {
               </label>
             </div>
           )}
-          <div className="campo">
-            <span className="rot">Comprovante{soComprovante ? '' : ' (opcional)'}</span>
-            <label className="btn peq arquivo">
-              <Icone nome="upload" tamanho={16} />
-              {arquivo ? arquivo.name : 'Escolher arquivo'}
-              <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" hidden onChange={(e) => { escolher(e.target.files?.[0]); e.target.value = ''; }} />
-            </label>
-            <span className="note">PDF ou imagem, até 20 MB.</span>
-          </div>
+          <CampoComprovante arquivo={arquivo} onEscolher={escolher} onRemover={() => setArquivo(null)} opcional={!soComprovante} />
           {!soComprovante && avisoReservado && <p className="aviso">Com este pagamento a reserva passa para Reservado e a data fica bloqueada.</p>}
           {erro && (
             <p className="msg-erro" role="alert">
@@ -725,14 +787,7 @@ export function RegistrarDevolucao(props: { reservaId: string; recebido: number;
             <span className="rot">Motivo</span>
             <input className="inp" value={motivo} maxLength={300} placeholder="Ex.: desistência com retenção contratual" onChange={(e) => setMotivo(e.target.value)} />
           </label>
-          <div className="campo">
-            <span className="rot">Comprovante (opcional)</span>
-            <label className="btn peq arquivo">
-              <Icone nome="upload" tamanho={16} />
-              {arquivo ? arquivo.name : 'Escolher arquivo'}
-              <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" hidden onChange={(e) => { escolher(e.target.files?.[0]); e.target.value = ''; }} />
-            </label>
-          </div>
+          <CampoComprovante arquivo={arquivo} onEscolher={escolher} onRemover={() => setArquivo(null)} opcional />
           {erro && (
             <p className="msg-erro" role="alert">
               {erro}

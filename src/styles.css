@@ -481,6 +481,14 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 .inp.invalido { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger) inset; }
 .soma-pct { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--danger); font-variant-numeric: tabular-nums; }
 .soma-pct.ok { color: var(--pg-ok); }
+.comprovante { display: flex; gap: 12px; align-items: flex-start; padding: 10px; border: 1px solid var(--line2); border-radius: 10px; background: var(--bg); }
+.comprovante-mini { width: 84px; height: 84px; flex: none; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; }
+.comprovante-mini img { width: 100%; height: 100%; object-fit: cover; }
+.comprovante-mini.pdf { color: var(--danger); font-weight: 700; font-size: 18px; letter-spacing: 1px; text-decoration: none; }
+.comprovante-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.comprovante-tx strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comprovante-tx > span { font-size: 12.5px; color: var(--muted); }
+.comprovante-tx a { color: var(--accent-strong); }
 label.btn.arquivo { align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 760px) {
   .valores { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
