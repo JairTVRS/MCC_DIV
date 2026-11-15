@@ -99,6 +99,10 @@ export function Historico({ locacaoId, pessoas, usuarios, onFechar }: { locacaoI
       const usuario = (id: string | null) => (id ? usuarios.find((u) => u.id === id)?.nome ?? 'usuário' : 'Sistema');
       const dataBr = (d: string) => new Date(`${d.slice(0, 10)}T12:00:00`).toLocaleDateString('pt-BR');
       const dataHoraBr = (d: string) => new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+      const quandoCurto = (d: string) => {
+        const x = new Date(d);
+        return `${x.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })} ${x.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      };
 
       function valor(campo: string, v: string | null): string {
         if (v === null || v === '') return '—';
@@ -138,11 +142,11 @@ export function Historico({ locacaoId, pessoas, usuarios, onFechar }: { locacaoI
             const p = parcelas.get(e.registro_id)!;
             titulo += ` (${reais(Number(p.valor))}, vence ${dataBr(p.vencimento)})`;
           }
-          g = { chave, quando: dataHoraBr(e.data_hora), quem: usuario(e.usuario_id), titulo, linhas: [] };
+          g = { chave, quando: quandoCurto(e.data_hora), quem: usuario(e.usuario_id), titulo, linhas: [] };
           lista.push(g);
         }
         if (e.acao === 'alterou' && e.campo) {
-          g.linhas.push(`${CAMPO[e.campo] ?? e.campo}: ${valor(e.campo, e.valor_anterior)} → ${valor(e.campo, e.valor_novo)}`);
+          g.linhas.push(`${CAMPO[e.campo] ?? e.campo} ${valor(e.campo, e.valor_anterior)} → ${valor(e.campo, e.valor_novo)}`);
         }
       }
       setGrupos(lista.filter((g) => g.linhas.length > 0 || !g.titulo.startsWith('alterou')));
@@ -171,20 +175,15 @@ export function Historico({ locacaoId, pessoas, usuarios, onFechar }: { locacaoI
           ) : grupos.length === 0 ? (
             <p className="vazio">Nenhum evento registrado.</p>
           ) : (
-            <ol className="linha-tempo">
+            <ol className="eventos">
               {grupos.map((g) => (
                 <li key={g.chave}>
-                  <div className="lt-cab">
-                    <strong>{g.quem}</strong> {g.titulo}
-                    <span className="lt-quando">{g.quando}</span>
-                  </div>
-                  {g.linhas.length > 0 && (
-                    <ul className="lt-campos">
-                      {g.linhas.map((l, i) => (
-                        <li key={i}>{l}</li>
-                      ))}
-                    </ul>
-                  )}
+                  <span className="ev-quando">{g.quando}</span>
+                  <span className="ev-quem">{g.quem}</span>
+                  <span className="ev-tx">
+                    {g.titulo}
+                    {g.linhas.length > 0 && <span className="ev-campos">: {g.linhas.join(' · ')}</span>}
+                  </span>
                 </li>
               ))}
             </ol>

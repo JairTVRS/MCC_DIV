@@ -518,14 +518,18 @@ label.btn.arquivo { align-self: flex-start; max-width: 100%; overflow: hidden; t
 }
 
 /* Histórico da reserva (linha do tempo do log) */
-.modal.historico { width: min(720px, calc(100% - 32px)); max-height: calc(100% - 32px); }
-.linha-tempo { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--line2); display: flex; flex-direction: column; gap: 12px; }
-.linha-tempo > li { position: relative; padding-left: 10px; }
-.linha-tempo > li::before { content: ''; position: absolute; left: -21px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface); }
-.lt-cab { font-size: 13.5px; line-height: 1.4; }
-.lt-cab strong { font-weight: 600; }
-.lt-quando { display: block; font-size: 12px; color: var(--muted); }
-.lt-campos { margin: 6px 0 0; padding: 8px 12px; list-style: none; background: var(--bg); border: 1px solid var(--line2); border-radius: 8px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.modal.historico { width: min(900px, calc(100% - 32px)); max-height: calc(100% - 32px); }
+.eventos { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line2); border-radius: 10px; overflow: hidden; font-size: 13px; }
+.eventos > li { display: grid; grid-template-columns: 112px 140px minmax(0, 1fr); gap: 10px; padding: 6px 12px; border-top: 1px solid var(--line2); align-items: baseline; line-height: 1.4; }
+.eventos > li:first-child { border-top: 0; }
+.eventos > li:nth-child(even) { background: var(--bg); }
+.ev-quando { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ev-quem { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev-tx { overflow-wrap: anywhere; }
+.ev-campos { color: var(--muted); }
+@media (max-width: 760px) {
+  .eventos > li { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
 
 /* Aviso de atualização do app (canto inferior direito) */
 .atualizando { position: fixed; z-index: 60; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 10px; background: var(--side); color: var(--side-fg); box-shadow: var(--shadow); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
