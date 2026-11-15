@@ -71,7 +71,7 @@ export function ListaReservas({ reservas, nomePessoa, nomeUsuario, vePagamento, 
                         <span className={`status-chip st-${r.status_compromisso}`}>{COMPROMISSO[r.status_compromisso].rotulo}</span>
                         {vePagamento && (
                           <span className="reserva-valor">
-                            {reais(r.valor_total)} <span className={`selo pg-${r.status_pagamento}`}>{PAGAMENTO[r.status_pagamento]}</span>
+                            {reais(r.valor_total - r.desconto)} <span className={`selo pg-${r.status_pagamento}`}>{PAGAMENTO[r.status_pagamento]}</span>
                           </span>
                         )}
                       </span>

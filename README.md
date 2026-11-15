@@ -11,6 +11,7 @@ Web app para gerenciar as locações da casa de eventos: agenda contínua, reser
 
 | Versão | Data | Descrição |
 |---|---|---|
+| v0.7.0 | 15/11/2026 | Etapa 7: prazos de pagamento (Configurações), plano de parcelas pelo prazo a partir da pré-reserva (editável), registrar pagamento com comprovante, Reservado automático no 1º pagamento e volta para Cadastrado sem nada pago, devolução no cancelamento, desconto com motivo |
 | v0.6.0 | 15/11/2026 | Etapas 5 e 6: agenda em calendário (FullCalendar) com visões Mês (padrão), Semana, Dia e Lista; mês arrasta entre dias mantendo o horário; semana/dia sem eixo de horas, arrastar e esticar em passos de 15 min; confirmação e conferência de conflito antes de gravar; celular com dia por dia e mês |
 | v0.4.1 | 15/11/2026 | Logo sem fundo e ícone da aba publicados com o app (`public/marca/`); configurações aceitam também imagens em `/marca/...` |
 | v0.4.0 | 15/11/2026 | Etapa 4: cadastro de pessoas (locatário, locador ou os dois) e da reserva (responsável, horário padrão 00:00–23:59, status, valor, resumo pago/total), aviso de conflito antes de salvar, agenda provisória em lista. Atualização do app: aviso "Atualizando app em 5…" no canto e recarga automática quando sai versão nova; Novidades só ao clicar na versão |
@@ -121,7 +122,7 @@ npm run test:db              # roda todas as migrações num Postgres em memóri
 - **Exclusão lógica:** nada é apagado. Exclua e restaure pelas funções `excluir_registro(tabela, id)` e `restaurar_registro(tabela, id)`. Excluir uma reserva leva junto parcelas, anexos e comentários; restaurar traz de volta. A lixeira (`listar_lixeira()`) mostra tudo que foi excluído; item de uma reserva excluída só volta junto com ela, e restaurar uma reserva cujo horário já foi ocupado é recusado com a reserva que está no caminho.
 - **Usuários:** o nome só muda por quem administra usuários; cada um troca a própria foto, que precisa estar na sua pasta do Storage. Trocar o tema ou ver as novidades não entra no log.
 - **Usuários online:** canal de presença privado do Realtime (`online`), aberto só para usuário ativo.
-- **Pagamento:** o status (pendente, parcial, pago, devolvido, devolvido parcial) é calculado pelo banco a partir das parcelas e da devolução.
+- **Pagamento:** o status (pendente, parcial, pago, devolvido, devolvido parcial) é calculado pelo banco a partir das parcelas e da devolução, sobre o **valor final** (valor − desconto). O plano de parcelas é gravado por `salvar_parcelas(reserva, plano)`, que troca só as em aberto. Qualquer valor pago deixa a reserva **Reservado**; pagamento desfeito sem nada pago volta para **Cadastrado**. Os prazos (`prazos_pagamento`) contam a partir de `locacoes.pre_reserva_em`.
 - **Log:** toda criação, alteração (campo, valor anterior e novo), exclusão e restauração vai para `log_eventos`, que ninguém altera nem apaga.
 
 ### Etapas do plano
@@ -132,7 +133,7 @@ npm run test:db              # roda todas as migrações num Postgres em memóri
 4. ✅ Cadastro de pessoas e da reserva (agenda provisória em lista)
 5. ✅ Visões semanal e diária com arrastar e redimensionar
 6. ✅ Visão mensal e lista para celular
-7. Pagamento: condições, rateio e devolução
+7. ✅ Pagamento: prazos, rateio, comprovante, reservado automático, devolução e desconto
 8. Anexos, comentários com menções e sino de notificações
 9. Relógios de log e lixeira
 10. Lista / relatório com filtros e exportação

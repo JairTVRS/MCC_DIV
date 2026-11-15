@@ -3,30 +3,38 @@ import { useSessao } from '../../auth/Sessao';
 import { FormasPagamento } from './FormasPagamento';
 import { Geral } from './Geral';
 import { Lixeira } from './Lixeira';
+import { PrazosPagamento } from './PrazosPagamento';
 
-type Aba = 'geral' | 'formas' | 'lixeira';
+type Aba = 'geral' | 'formas' | 'prazos' | 'lixeira';
+const ABAS: Aba[] = ['geral', 'formas', 'prazos', 'lixeira'];
 
 function abaLembrada(): Aba {
   try {
     const a = localStorage.getItem('config-aba');
-    if (a === 'geral' || a === 'formas' || a === 'lixeira') return a;
+    if (ABAS.includes(a as Aba)) return a as Aba;
   } catch {
     /* armazenamento indisponível */
   }
   return 'geral';
 }
 
-/** Engrenagem: cada aba segue a sua função na árvore (Configurações > Nome, logo e ícone / Formas de pagamento / Lixeira). */
+/** Engrenagem: cada aba segue a sua função na árvore (Configurações > Nome, logo e ícone / Formas / Prazos / Lixeira). */
 export function Configuracoes() {
   const { tem } = useSessao();
   const abas: { id: Aba; titulo: string }[] = [
     { id: 'geral', titulo: 'Geral' },
     { id: 'formas', titulo: 'Formas de pagamento' },
+    { id: 'prazos', titulo: 'Prazos de pagamento' },
     ...(tem('configuracoes.lixeira') ? [{ id: 'lixeira' as const, titulo: 'Lixeira' }] : []),
   ];
   const [escolhida, setEscolhida] = useState<Aba>(abaLembrada);
   const aba = abas.some((a) => a.id === escolhida) ? escolhida : 'geral';
-  const podeAlterar = aba === 'geral' ? tem('configuracoes.nome_logo') : aba === 'formas' ? tem('configuracoes.formas_pagamento') : true;
+  const podeAlterar = {
+    geral: tem('configuracoes.nome_logo'),
+    formas: tem('configuracoes.formas_pagamento'),
+    prazos: tem('configuracoes.prazos'),
+    lixeira: true,
+  }[aba];
 
   function trocar(a: Aba) {
     setEscolhida(a);
@@ -50,6 +58,7 @@ export function Configuracoes() {
         {!podeAlterar && <p className="aviso">Só leitura: seu grupo pode ver, mas não alterar esta seção.</p>}
         {aba === 'geral' && <Geral podeAlterar={podeAlterar} />}
         {aba === 'formas' && <FormasPagamento podeAlterar={podeAlterar} />}
+        {aba === 'prazos' && <PrazosPagamento podeAlterar={podeAlterar} />}
         {aba === 'lixeira' && <Lixeira />}
       </div>
     </div>

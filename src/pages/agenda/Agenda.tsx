@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabase';
 import type { Pessoa, Reserva } from '../../lib/tipos';
 import type { Mudanca, VisaoCalendario } from './Calendario';
 import { ConfirmarMudanca } from './ConfirmarMudanca';
-import { COLUNAS_RESERVA, FormReserva, type UsuarioCurto } from './FormReserva';
+import { COLUNAS_RESERVA, FormReserva, normalizarReserva, type UsuarioCurto } from './FormReserva';
 import { ListaReservas } from './ListaReservas';
 import { dataLocal } from './formatos';
 
@@ -84,7 +84,7 @@ export function Agenda() {
       const falha = r.error ?? p.error ?? u.error ?? g.error;
       if (falha) throw falha;
       const gruposAgenda = new Set((g.data ?? []).map((x: { perfil_id: string }) => x.perfil_id));
-      setReservas((r.data ?? []).map((x) => ({ ...(x as Reserva), valor_total: Number((x as Reserva).valor_total) })));
+      setReservas((r.data ?? []).map(normalizarReserva));
       setPessoas((p.data ?? []) as Pessoa[]);
       setUsuarios(
         (u.data ?? []).map((x: { id: string; nome: string; status_acesso: string; perfil_id: string | null }) => ({

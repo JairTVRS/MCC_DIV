@@ -438,6 +438,44 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
   .calendario .fc { font-size: 12px; }
 }
 
+/* Pagamento: valores, parcelas, plano e prazos */
+.valores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.valor-final { display: flex; align-items: center; min-height: 40px; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.valor-final.erro { color: var(--danger); }
+.pg { display: flex; flex-direction: column; gap: 12px; }
+.pg-numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.pg-numeros > div { border: 1px solid var(--line2); border-radius: 10px; padding: 10px 12px; background: var(--bg); display: flex; flex-direction: column; gap: 2px; }
+.pg-numeros strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.pg-numeros strong.ok { color: var(--pg-ok); }
+.pg-titulo { margin: 4px 0 0; font-family: var(--serif); font-size: 20px; font-weight: 600; }
+.parcelas { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line2); border-radius: 10px; overflow: hidden; }
+.parcela { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--line2); flex-wrap: wrap; }
+.parcela:first-child { border-top: 0; }
+.parcela-n { width: 64px; flex: none; font-weight: 600; color: var(--muted); font-size: 13px; }
+.parcela-tx { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 2px; }
+.parcela-tx strong { font-variant-numeric: tabular-nums; }
+.parcela-tx span { font-size: 12.5px; color: var(--muted); }
+.parcela-sit { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.parcela.paga .parcela-sit { color: var(--pg-ok); }
+.parcela.vencida .parcela-sit { color: var(--danger); }
+.parcela.encerrada { opacity: 0.6; }
+.parcela-acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.plano-gerar { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; padding: 12px; border: 1px solid var(--line2); border-radius: 10px; background: var(--bg); }
+.plano-gerar .campo .note { position: absolute; }
+.plano-gerar .campo { position: relative; padding-bottom: 14px; }
+.tabela-plano, .tabela-prazo { width: 100%; border-collapse: collapse; }
+.tabela-plano th, .tabela-prazo th { text-align: left; font-size: 11.5px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); padding: 4px 6px; }
+.tabela-plano td, .tabela-prazo td { padding: 4px 6px; vertical-align: middle; }
+.tabela-prazo td:first-child { width: 36px; color: var(--muted); font-weight: 600; }
+.soma-pct { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--danger); font-variant-numeric: tabular-nums; }
+.soma-pct.ok { color: var(--pg-ok); }
+label.btn.arquivo { align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) {
+  .valores { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .plano-gerar { grid-template-columns: minmax(0, 1fr); }
+  .parcela-acoes { margin-left: 0; width: 100%; }
+}
+
 /* Aviso de atualização do app (canto inferior direito) */
 .atualizando { position: fixed; z-index: 60; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 10px; background: var(--side); color: var(--side-fg); box-shadow: var(--shadow); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .atualizando .gira { display: flex; color: var(--side-active); animation: girar 1.4s linear infinite; }

@@ -85,11 +85,51 @@ export interface Reserva {
   status_compromisso: StatusCompromisso;
   status_pagamento: StatusPagamento;
   valor_total: number;
+  /** Desconto em R$ (até o valor total). Valor final = valor_total - desconto. */
+  desconto: number;
+  motivo_desconto: string | null;
+  /** Quando entrou em Pré-reserva: data base dos prazos de pagamento. */
+  pre_reserva_em: string | null;
   observacoes: string | null;
   criado_por: string | null;
   criado_em: string;
   alterado_por: string | null;
   alterado_em: string | null;
+}
+
+/** Prazo de pagamento cadastrado: parcelas em dias (a partir da pré-reserva) e % do valor. */
+export interface PrazoPagamento {
+  id: string;
+  nome: string;
+  parcelas: { dias: number; percentual: number }[];
+  ativo: boolean;
+  ordem: number;
+}
+
+export interface Parcela {
+  id: string;
+  locacao_id: string;
+  numero: number;
+  tipo: 'entrada' | 'parcela';
+  valor: number;
+  vencimento: string; // AAAA-MM-DD
+  forma_pagamento_id: string | null;
+  paga: boolean;
+  pago_em: string | null;
+  comprovante_id: string | null;
+  encerrada: boolean;
+}
+
+export interface Devolucao {
+  id: string;
+  locacao_id: string;
+  valor_devolvido: number;
+  valor_retido: number;
+  data: string;
+  forma_pagamento_id: string | null;
+  motivo: string | null;
+  comprovante_id: string | null;
+  registrado_em: string;
 }
 
 export interface FormaPagamento {
