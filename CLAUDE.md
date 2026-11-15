@@ -50,8 +50,8 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - **v0.3.0** — Etapa 3 concluída: tela Usuários e Grupos (lista de espera com aprovação por grupo, usuários com busca/filtros/ativar/inativar/nome/grupo, grupos com árvore de permissões), número da lista de espera no menu.
 - v0.2.x — Etapa 2: Configurações (nome/logo, ícone da aba próprio, formas de pagamento, lixeira), Meu perfil e Trocar foto, contador online, página `/privacidade`.
 - Telas Agenda, Lista e Pessoas ainda são "em construção".
-- Migrações 001 a 006 aplicadas no Supabase; v0.2.2 publicada no Cloudflare (15/11/2026).
-- **Onde paramos (15/11/2026):** v0.3.0 pronta no `main` local, aguardando o Jair rodar a migração 007 antes do push (o front novo lê `grupo_funcoes`). Pendências do Jair: enviar logos transparentes e ícone (`Docs/Icones/`), Branding no Google Cloud + Publicar app.
+- Migrações 001 a 007 aplicadas no Supabase; v0.3.0 publicada no Cloudflare (15/11/2026). Lista de espera testada no localhost (pedido da conta retiroscasade aparecendo).
+- **Onde paramos (15/11/2026):** etapa 3 no ar. Pendências do Jair: aprovar a conta retiroscasade na lista de espera, enviar logos transparentes e ícone (`Docs/Icones/`), Branding no Google Cloud + Publicar app. Próximo passo: escopo da etapa 4 para aprovação.
 - Servidor local: o Claude sobe e mantém o `npm run dev` na porta 5173 (a 5174 quebra o login Google).
 - Push: funciona daqui com `GCM_INTERACTIVE=never` (o repositório fixa a conta `JairTVRS` na config local).
 
