@@ -374,6 +374,13 @@ ok(!!await erro(()=>as(A,`update locacoes set desconto=1500 where id='${rd.id}'`
 ok(!!await erro(()=>as(B,`update locacoes set desconto=100 where id='${rd.id}'`)),'sem "Conceder desconto" não mexe no desconto');
 const [rt]=await as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim,valor_total,desconto,motivo_desconto) values($1,$2,'2027-02-13 00:00-03','2027-02-13 23:59-03',1000,1000,'Cortesia') returning id`,[pa.id,lr.id]);
 ok((await su(`select status_pagamento from locacoes where id=$1`,[rt.id]))[0].status_pagamento==='pago','desconto de 100%: nada a pagar, aparece como Pago');
+ok((await su(`select status_compromisso from locacoes where id=$1`,[rt.id]))[0].status_compromisso==='reservado','desconto de 100% deixa a reserva Reservado');
+const [ru]=await as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim,valor_total) values($1,$2,'2027-02-20 00:00-03','2027-02-20 23:59-03',800) returning id`,[pa.id,lr.id]);
+await as(C,`update locacoes set desconto=800, motivo_desconto='Cortesia' where id='${ru.id}'`);
+ok((await su(`select status_compromisso from locacoes where id=$1`,[ru.id]))[0].status_compromisso==='reservado','dar desconto total depois também deixa Reservado (sem precisar de "Confirmar reserva")');
+const [rv]=await as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim,valor_total) values($1,$2,'2027-02-20 10:00-03','2027-02-20 12:00-03',300) returning id`,[pa.id,lr.id]);
+e=await erro(()=>as(A,`update locacoes set desconto=300 where id='${rv.id}'`));
+ok(!!e&&/desconto total a reserva vira Reservado, e a data já está ocupada/.test(e),'desconto total com a data ocupada é recusado com o motivo');
 ok((await su(`select status_pagamento from locacoes where id=$1`,[rp.id]))[0].status_pagamento!=='pago','reserva sem valor definido não aparece como Paga');
 await as(A,`update locacoes set desconto=200 where id='${rd.id}'`);
 ok((await su(`select * from log_eventos where locacao_id=$1 and campo='desconto' and valor_anterior='500.00' and valor_novo='200.00'`,[rd.id])).length===1,'mudança de desconto entra no histórico (anterior e novo)');

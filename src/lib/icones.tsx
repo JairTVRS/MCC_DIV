@@ -19,6 +19,7 @@ const PATHS: Record<string, string> = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  relogio: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   esq: '<path d="M15 6l-6 6 6 6"/>',
   dir: '<path d="M9 6l6 6-6 6"/>',
 };

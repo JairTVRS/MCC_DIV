@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import type { FormaPagamento, Pessoa, Reserva, StatusCompromisso } from '../../lib/tipos';
 import { FormPessoa } from '../pessoas/FormPessoa';
 import { AbaPagamento, RegistrarDevolucao, valorFinal } from './AbaPagamento';
+import { Historico } from './Historico';
 import { SeletorPessoa } from './SeletorPessoa';
 import { COMPROMISSO, PAGAMENTO, dataLocal, escreverReais, hojeLocal, horaLocal, lerReais, paraIso, reais } from './formatos';
 
@@ -68,6 +69,7 @@ export function FormReserva({ reserva, diaInicial, pessoas, usuarios, onPessoaNo
   const [cadastrando, setCadastrando] = useState<{ tipo: 'locatario' | 'locador'; nome: string } | null>(null);
   const [devolucao, setDevolucao] = useState<{ recebido: number; formas: FormaPagamento[] } | null>(null);
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
+  const [historico, setHistorico] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -198,6 +200,11 @@ export function FormReserva({ reserva, diaInicial, pessoas, usuarios, onPessoaNo
         <div className="m-head">
           <h2>{nova ? 'Nova reserva' : 'Reserva'}</h2>
           <span className={`status-chip st-${status}`}>{COMPROMISSO[status].rotulo}</span>
+          {atual && tem('logs.reserva') && (
+            <button type="button" className="ib" onClick={() => setHistorico(true)} aria-label="Histórico da reserva" title="Histórico da reserva">
+              <Icone nome="relogio" />
+            </button>
+          )}
           <button type="button" className="ib" onClick={onFechar} aria-label="Fechar" disabled={ocupado}>
             <Icone nome="x" />
           </button>
@@ -405,6 +412,7 @@ export function FormReserva({ reserva, diaInicial, pessoas, usuarios, onPessoaNo
           }}
         />
       )}
+      {historico && atual && <Historico locacaoId={atual.id} pessoas={pessoas} usuarios={usuarios} onFechar={() => setHistorico(false)} />}
       {devolucao && atual && (
         <RegistrarDevolucao
           reservaId={atual.id}

@@ -517,6 +517,16 @@ label.btn.arquivo { align-self: flex-start; max-width: 100%; overflow: hidden; t
   .parcela-acoes { margin-left: 0; width: 100%; }
 }
 
+/* Histórico da reserva (linha do tempo do log) */
+.modal.historico { width: min(720px, calc(100% - 32px)); max-height: calc(100% - 32px); }
+.linha-tempo { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--line2); display: flex; flex-direction: column; gap: 12px; }
+.linha-tempo > li { position: relative; padding-left: 10px; }
+.linha-tempo > li::before { content: ''; position: absolute; left: -21px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface); }
+.lt-cab { font-size: 13.5px; line-height: 1.4; }
+.lt-cab strong { font-weight: 600; }
+.lt-quando { display: block; font-size: 12px; color: var(--muted); }
+.lt-campos { margin: 6px 0 0; padding: 8px 12px; list-style: none; background: var(--bg); border: 1px solid var(--line2); border-radius: 8px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+
 /* Aviso de atualização do app (canto inferior direito) */
 .atualizando { position: fixed; z-index: 60; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 10px; background: var(--side); color: var(--side-fg); box-shadow: var(--shadow); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .atualizando .gira { display: flex; color: var(--side-active); animation: girar 1.4s linear infinite; }
