@@ -67,7 +67,12 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - v0.4.0 — Etapa 4: tela Pessoas (busca, filtro, cadastro com tipo locatário/locador/ambos) e formulário da reserva (abas Dados/Pagamento/Anexos/Comentários — só Dados funciona; seletor de pessoa com busca e cadastro rápido; responsável; 00:00–23:59; status com permissões; valor; resumo pago/total/%; aviso de conflito; excluir). Lista por mês (Próximas/Anteriores/Todas), hoje a visão "Lista" da agenda.
 - v0.3.0 — Etapa 3: Usuários e Grupos (lista de espera, usuários, grupos com árvore de permissões). v0.2.x — Etapa 2: Configurações, Meu perfil/Trocar foto, contador online, `/privacidade`.
 - Migrações 001 a 014 aplicadas no Supabase; v0.7.0 publicada no Cloudflare (15/11/2026). Testado no localhost: mês (faixa contínua, clique em dia vazio), semana (nome na continuação). Google OAuth **em produção** (Branding com página inicial, `/privacidade` e domínios `mcc-div.pages.dev` + `rcxijihpzlsozfyxnkhy.supabase.co`; sem logotipo, para não exigir verificação).
-- **Onde paramos (15/11/2026):** v0.8.1 publicada (Sair com no máximo 3 s de espera); migrações 001 a 017 aplicadas. v1.0.0 publicada; migrações 001 a 018 aplicadas. Checklist de validação (44 itens, todos OK no localhost): https://claude.ai/artifact/QeirJpBc5STYikdqJ6YmJj. Próximo passo: o que o Jair pedir (ajustes de uso real).
+- **Onde paramos (15/11/2026, fim do dia):** v1.0.0 no ar (mcc-div.pages.dev), conferida em produção pelo Jair; migrações 001 a 018 aplicadas; as 11 etapas do plano concluídas. Checklist de validação (44 itens OK): https://claude.ai/artifact/QeirJpBc5STYikdqJ6YmJj.
+- **Pendências para a retomada (uso real):**
+  1. **Backup do banco** (prioridade): o Supabase gratuito não tem backup restaurável ("Last backup: No backups"). Decidir entre plano Pro (backup diário) ou rotina de exportação; o Claude ofereceu montar uma rotina simples.
+  2. **Limpar dados de teste** em produção: reservas "MCC DIV" de 15/11 e 20/11, comentários "teste", reserva cancelada na lixeira, anexos de teste; inativar a pessoa "MCC DIV" se não for cliente.
+  3. **Alerta de vencimento no sino** (pg_cron 07:00): ainda não visto em produção; conferir quando houver parcela em aberto vencendo em 3 dias.
+  4. **Revisar permissões dos grupos** (Gestor vê Histórico geral; só Administrador inativa pessoas; quem exporta CSV).
 - Servidor local: o Claude sobe e mantém o `npm run dev` na porta 5173 (a 5174 quebra o login Google).
 - Push: funciona daqui com `GCM_INTERACTIVE=never` (o repositório fixa a conta `JairTVRS` na config local).
 
