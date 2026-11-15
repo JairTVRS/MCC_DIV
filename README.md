@@ -11,6 +11,7 @@ Web app para gerenciar as locações da casa de eventos: agenda contínua, reser
 
 | Versão | Data | Descrição |
 |---|---|---|
+| v0.4.0 | 15/11/2026 | Etapa 4: cadastro de pessoas (locatário, locador ou os dois) e da reserva (responsável, horário padrão 00:00–23:59, status, valor, resumo pago/total), aviso de conflito antes de salvar, agenda provisória em lista |
 | v0.3.0 | 15/11/2026 | Etapa 3: lista de espera com aprovação por grupo, usuários (busca, filtros, ativar/inativar, nome e grupo), grupos de usuários e árvore de permissões por módulo e função |
 | v0.2.2 | 13/11/2026 | Ícone da aba do navegador enviado à parte (imagem quadrada); sem ele, continua gerado a partir do logo |
 | v0.2.1 | 13/11/2026 | Correção do contador de usuários online (políticas do canal privado); o ícone aparece sempre e mostra quando o canal está indisponível |
@@ -113,7 +114,8 @@ npm run test:db              # roda todas as migrações num Postgres em memóri
 - **Acesso:** só usuário com status `ativo` lê ou grava qualquer coisa. Pendente, recusado e inativo ficam bloqueados no próprio banco.
 - **Permissões:** cada usuário pertence a um **grupo** (tabela `perfis`). O que cada grupo pode fazer é uma **árvore** módulo > função (`funcoes`), liberada por grupo (`grupo_funcoes`): ex.: Agenda > Visualizar, Incluir, Alterar, Excluir, Confirmar reserva. O banco confere com `tem_funcao('codigo')`; `tem_permissao(modulo, acao)` e `tem_acao(acao)` continuam valendo e leem a árvore. O grupo Administrador (`perfis.sistema`) tem sempre tudo; só administradores mexem em administradores; ninguém altera o próprio acesso ou grupo.
 - **Função nova:** uma migração com `insert into public.funcoes (codigo, pai, tipo, rotulo, ordem)`; ela já nasce liberada para o Administrador e aparece na árvore da tela de Grupos.
-- **Conflito de agenda:** o banco recusa pré-reserva ou reservado que se sobreponha a outra pré-reserva ou reservado. Cadastrado pode dividir a data.
+- **Conflito de agenda:** o banco recusa pré-reserva ou reservado que se sobreponha a outra pré-reserva ou reservado. Cadastrado pode dividir a data. A tela consulta `conflito_reserva(inicio, fim, ignorar)` antes de salvar para dizer qual reserva ocupa o horário.
+- **Pessoas e reserva:** uma pessoa pode ser locatário, locador ou os dois (`tipo = 'ambos'`). A reserva só aceita locatário/locador do tipo certo e fora da lixeira, e responsável ativo que vê a agenda.
 - **Exclusão lógica:** nada é apagado. Exclua e restaure pelas funções `excluir_registro(tabela, id)` e `restaurar_registro(tabela, id)`. Excluir uma reserva leva junto parcelas, anexos e comentários; restaurar traz de volta. A lixeira (`listar_lixeira()`) mostra tudo que foi excluído; item de uma reserva excluída só volta junto com ela, e restaurar uma reserva cujo horário já foi ocupado é recusado com a reserva que está no caminho.
 - **Usuários:** o nome só muda por quem administra usuários; cada um troca a própria foto, que precisa estar na sua pasta do Storage. Trocar o tema ou ver as novidades não entra no log.
 - **Usuários online:** canal de presença privado do Realtime (`online`), aberto só para usuário ativo.
@@ -125,7 +127,7 @@ npm run test:db              # roda todas as migrações num Postgres em memóri
 1. ✅ Projeto Supabase, tabelas, login Google e deploy inicial no Cloudflare
 2. ✅ Configurações (nome, logo, formas de pagamento, lixeira), avatar com upload, usuários online, política de privacidade
 3. ✅ Acesso: lista de espera com aprovação por grupo, status do usuário, grupos de usuários e árvore de permissões
-4. Cadastro de pessoas e da reserva
+4. ✅ Cadastro de pessoas e da reserva (agenda provisória em lista)
 5. Visões semanal e diária com arrastar e redimensionar
 6. Visão mensal e lista para celular
 7. Pagamento: condições, rateio e devolução

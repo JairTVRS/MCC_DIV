@@ -43,22 +43,22 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - (v0.2.0) Lixeira: `listar_lixeira()` (só `restaurar_lixeira`); item de reserva excluída só volta com ela; restaurar com conflito de horário dá mensagem com a reserva que ocupa a data.
 - (v0.2.0) Nome do usuário só muda com permissão de editar usuários; `foto_upload` precisa estar em `avatares/<id do usuário>/`; logos só do bucket `marca`; `tema_preferido` e `ultima_versao_vista` não entram no log.
 - (v0.2.0/v0.2.1/v0.3.0) Usuários online: canal privado de presença `online` no Realtime, com políticas em `realtime.messages` (select e insert, extensões broadcast e presence) para quem tem `online.visualizar`.
+- (v0.4.0) Pessoas: `tipo` locatario | locador | ambos. Reserva só aceita locatário/locador do tipo certo e fora da lixeira, e responsável ativo com `reservas.visualizar` (gatilho `pessoas_validas`). `conflito_reserva(inicio, fim, ignorar)` devolve o texto da reserva que ocupa o horário (a tela consulta antes de salvar).
 - Rotas: o app usa só `#hash`; `/privacidade` é o arquivo estático `public/privacidade.html` (não existe `_redirects`).
 
 ## Situação atual
 
-- **v0.3.0** — Etapa 3 concluída: tela Usuários e Grupos (lista de espera com aprovação por grupo, usuários com busca/filtros/ativar/inativar/nome/grupo, grupos com árvore de permissões), número da lista de espera no menu.
-- v0.2.x — Etapa 2: Configurações (nome/logo, ícone da aba próprio, formas de pagamento, lixeira), Meu perfil e Trocar foto, contador online, página `/privacidade`.
-- Telas Agenda, Lista e Pessoas ainda são "em construção".
-- Migrações 001 a 007 aplicadas no Supabase; v0.3.0 publicada no Cloudflare (15/11/2026). Lista de espera testada no localhost (pedido da conta retiroscasade aparecendo).
-- **Onde paramos (15/11/2026):** etapa 3 no ar. Pendências do Jair: aprovar a conta retiroscasade na lista de espera, enviar logos transparentes e ícone (`Docs/Icones/`), Branding no Google Cloud + Publicar app. Próximo passo: escopo da etapa 4 para aprovação.
+- **v0.4.0** — Etapa 4 concluída: tela Pessoas (busca, filtro, cadastro com tipo locatário/locador/ambos) e formulário da reserva (abas Dados/Pagamento/Anexos/Comentários — só Dados funciona; seletor de pessoa com busca e cadastro rápido; responsável; 00:00–23:59; status com permissões; valor; resumo pago/total/%; aviso de conflito; excluir). Agenda provisória em lista por mês (Próximas/Anteriores/Todas) até as etapas 5–6.
+- v0.3.0 — Etapa 3: Usuários e Grupos (lista de espera, usuários, grupos com árvore de permissões). v0.2.x — Etapa 2: Configurações, Meu perfil/Trocar foto, contador online, `/privacidade`.
+- Tela Lista / Relatório ainda é "em construção" (etapa 10).
+- Migrações 001 a 007 aplicadas no Supabase; v0.3.0 publicada no Cloudflare (15/11/2026).
+- **Onde paramos (15/11/2026):** v0.4.0 pronta no `main` local, aguardando o Jair rodar a migração 008 antes do push (a tela usa `conflito_reserva` e o tipo `ambos`). Pendências do Jair: logos sem fundo e ícone (`Docs/Icones/`, já processados), Branding no Google Cloud + Publicar app.
 - Servidor local: o Claude sobe e mantém o `npm run dev` na porta 5173 (a 5174 quebra o login Google).
 - Push: funciona daqui com `GCM_INTERACTIVE=never` (o repositório fixa a conta `JairTVRS` na config local).
 
 ## Próximas etapas (plano v1.8, com os ajustes do Jair)
 
-4. **(próxima)** Cadastro de pessoas e da reserva (horário padrão 00:00–23:59; resumo pago/total e % na aba Dados).
-5. Visões semanal e diária (sem eixo de horas na lateral) com arrastar e redimensionar.
+5. **(próxima)** Visões semanal e diária (sem eixo de horas na lateral) com arrastar e redimensionar.
 6. Visão mensal (arrastar entre dias) e lista por dia no celular.
 7. Pagamento: condições, rateio de parcelas, devolução no cancelamento.
 8. Anexos, comentários com menções @ e sino de notificações (Realtime).

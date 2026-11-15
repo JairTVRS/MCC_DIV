@@ -4,7 +4,9 @@ import { Icone } from '../lib/icones';
 import { supabase } from '../lib/supabase';
 import { aplicarTema, temaEfetivo } from '../lib/tema';
 import type { CodigoFuncao, VersaoApp } from '../lib/tipos';
+import { Agenda } from '../pages/agenda/Agenda';
 import { Configuracoes } from '../pages/configuracoes/Configuracoes';
+import { Pessoas } from '../pages/pessoas/Pessoas';
 import { Usuarios } from '../pages/usuarios/Usuarios';
 import { useEsperando } from '../pages/usuarios/dados';
 import { APP_VERSION } from '../version';
@@ -167,6 +169,10 @@ export function Casca() {
             <Configuracoes />
           ) : pagina === 'usuarios' ? (
             <Usuarios onMudouEspera={espera.recarregar} />
+          ) : pagina === 'agenda' ? (
+            <Agenda />
+          ) : pagina === 'pessoas' ? (
+            <Pessoas />
           ) : (
             <div className="empty-stage">
               <span className="tag">{atual.etapa}</span>

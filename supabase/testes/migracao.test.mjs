@@ -257,5 +257,27 @@ ok((await su(`select * from grupo_funcoes where perfil_id=$1 and funcao='online.
 await su(`delete from funcoes where codigo='online.teste'`);
 ok((await as(B,`select * from log_eventos where tabela='grupo_funcoes'`)).length===0&&(await as(A,`select * from log_eventos where tabela='grupo_funcoes'`)).length>0,'log de permissões só para quem vê histórico dos usuários');
 
+console.log('14. Pessoas e reservas (v0.4.0)');
+const [amb]=await as(A,`insert into pessoas(nome,tipo,telefone,email,documento) values('  Ana Ambos ','ambos','  ',' Ana@Exemplo.COM ','') returning id, nome, telefone, email, documento`);
+ok(amb.nome==='Ana Ambos'&&amb.telefone===null&&amb.email==='ana@exemplo.com'&&amb.documento===null,'pessoa: nome e campos limpos (e-mail em minúsculas, vazios viram nulo)');
+const [ra]=await as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim,valor_total) values($1,$1,'2026-12-05 00:00-03','2026-12-05 23:59-03',4500) returning id`,[amb.id]);
+ok(!!ra.id,'quem é "ambos" pode ser locatário e locador da mesma reserva');
+e=await erro(()=>as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim) values($1,$2,'2026-12-06 00:00-03','2026-12-06 23:59-03')`,[lr.id,lr.id]));
+ok(!!e&&/locatário precisa/.test(e),'locador puro não entra como locatário');
+e=await erro(()=>as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim) values($1,$2,'2026-12-06 00:00-03','2026-12-06 23:59-03')`,[loc1.id,loc1.id]));
+ok(!!e&&/locador precisa/.test(e),'locatário puro não entra como locador');
+e=await erro(()=>as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim,responsavel_id) values($1,$2,'2026-12-06 00:00-03','2026-12-06 23:59-03',$3)`,[loc1.id,lr.id,F]));
+ok(!!e&&/responsável precisa/.test(e),'responsável precisa ser usuário ativo que vê a agenda');
+await as(A,`update locacoes set status_compromisso='pre_reserva' where id='${ra.id}'`);
+let cf=(await as(B,`select conflito_reserva('2026-12-05 18:00-03','2026-12-05 22:00-03') t`))[0].t;
+ok(/reserva de Ana Ambos em 05\/12\/2026 \(00:00 às 23:59\)/.test(cf||''),'conflito_reserva diz qual reserva ocupa o horário');
+ok((await as(B,`select conflito_reserva('2026-12-05 18:00-03','2026-12-05 22:00-03','${ra.id}') t`))[0].t===null,'conflito_reserva ignora a própria reserva (edição)');
+ok((await as(B,`select conflito_reserva('2026-12-06 00:00-03','2026-12-06 23:59-03') t`))[0].t===null,'dia seguinte livre (00:00 não bate com 23:59 da véspera)');
+ok(!!await erro(()=>as(F,`select conflito_reserva('2026-12-05 18:00-03','2026-12-05 22:00-03')`)),'quem não vê a agenda não consulta conflito');
+const [pz2]=await as(A,`insert into pessoas(nome,tipo) values('Zé Ambos','ambos') returning id`);
+await as(A,`select excluir_registro('pessoas','${pz2.id}')`);
+ok((await as(A,`select * from listar_lixeira() where id='${pz2.id}'`))[0].detalhe==='Locatário e locador','lixeira mostra "Locatário e locador"');
+ok(!!await erro(()=>as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim) values($1,$1,'2026-12-10 00:00-03','2026-12-10 23:59-03')`,[pz2.id])),'pessoa na lixeira não entra em reserva nova');
+
 console.log(falhas?`\n${falhas} FALHA(S)`:'\nTODOS OS TESTES PASSARAM');
 process.exit(falhas?1:0);

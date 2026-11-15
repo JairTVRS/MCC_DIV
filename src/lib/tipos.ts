@@ -61,6 +61,37 @@ export interface UsuarioAdmin {
   decidido_por: string | null;
 }
 
+export type TipoPessoa = 'locatario' | 'locador' | 'ambos';
+
+export interface Pessoa {
+  id: string;
+  nome: string;
+  tipo: TipoPessoa;
+  telefone: string | null;
+  email: string | null;
+  documento: string | null;
+}
+
+export type StatusCompromisso = 'cadastrado' | 'pre_reserva' | 'reservado' | 'cancelado';
+export type StatusPagamento = 'pendente' | 'parcial' | 'pago' | 'devolvido' | 'devolvido_parcial';
+
+export interface Reserva {
+  id: string;
+  locatario_id: string;
+  locador_id: string;
+  responsavel_id: string;
+  inicio: string;
+  fim: string;
+  status_compromisso: StatusCompromisso;
+  status_pagamento: StatusPagamento;
+  valor_total: number;
+  observacoes: string | null;
+  criado_por: string | null;
+  criado_em: string;
+  alterado_por: string | null;
+  alterado_em: string | null;
+}
+
 export interface FormaPagamento {
   id: string;
   nome: string;

@@ -8,6 +8,7 @@ export function mensagemErro(e: unknown, padrao = 'Não foi possível concluir. 
   const msg = (typeof err.message === 'string' ? err.message : String(e)).trim();
 
   if (err.code === '23505' || /duplicate key/i.test(msg)) return 'Já existe um registro com esse nome.';
+  if (err.code === '23P01' || /locacoes_sem_conflito|conflicting key/i.test(msg)) return 'Esse horário já está ocupado por outra pré-reserva ou reserva.';
   if (err.code === '23514' || /violates check constraint/i.test(msg)) return 'Valor inválido. Confira o que foi digitado.';
   if (/row-level security|permission denied/i.test(msg)) return 'Seu perfil não tem permissão para isso.';
   if (/maximum allowed size|payload too large|too large/i.test(msg)) return 'O arquivo passa do limite de 2 MB.';

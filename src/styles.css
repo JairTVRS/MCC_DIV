@@ -312,6 +312,95 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
   .arvore-funcao small { display: none; }
 }
 
+/* Status do compromisso (plano v1.8, item 11): cadastrado névoa tracejado, pré-reserva âmbar suave, reservado bronze, cancelado cinza riscado */
+:root {
+  --st-cad-bg: #e9e7e0; --st-cad-bd: #9d978c; --st-cad-fg: #4d4748;
+  --st-pre-bg: #f5e6c4; --st-pre-bd: #c99a3c; --st-pre-fg: #6d4f12;
+  --st-res-bg: #ead9c2; --st-res-bd: #ad926e; --st-res-fg: #5a4530;
+  --st-can-bg: #ecebe8; --st-can-bd: #b5b0aa; --st-can-fg: #7a7470;
+  --pg-ok: #4f6e3f; --pg-parcial: #946812; --pg-pend: #a24b2b; --pg-dev: #7a7470;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --st-cad-bg: #343031; --st-cad-bd: #7d766f; --st-cad-fg: #d9d3c9;
+    --st-pre-bg: #47391b; --st-pre-bd: #c99a3c; --st-pre-fg: #f0d79d;
+    --st-res-bg: #4a3d2d; --st-res-bd: #dfcf93; --st-res-fg: #f1e3c3;
+    --st-can-bg: #2e2b2c; --st-can-bd: #5f5a56; --st-can-fg: #a39c94;
+    --pg-ok: #93b67c; --pg-parcial: #e2b65a; --pg-pend: #e4906d; --pg-dev: #a39c94;
+  }
+}
+:root[data-theme='dark'] {
+  --st-cad-bg: #343031; --st-cad-bd: #7d766f; --st-cad-fg: #d9d3c9;
+  --st-pre-bg: #47391b; --st-pre-bd: #c99a3c; --st-pre-fg: #f0d79d;
+  --st-res-bg: #4a3d2d; --st-res-bd: #dfcf93; --st-res-fg: #f1e3c3;
+  --st-can-bg: #2e2b2c; --st-can-bd: #5f5a56; --st-can-fg: #a39c94;
+  --pg-ok: #93b67c; --pg-parcial: #e2b65a; --pg-pend: #e4906d; --pg-dev: #a39c94;
+}
+.status-chip { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; letter-spacing: 0.4px; padding: 3px 10px; border-radius: 20px; border: 1.5px solid; white-space: nowrap; }
+.status-chip.st-cadastrado { background: var(--st-cad-bg); border-color: var(--st-cad-bd); border-style: dashed; color: var(--st-cad-fg); }
+.status-chip.st-pre_reserva { background: var(--st-pre-bg); border-color: var(--st-pre-bd); color: var(--st-pre-fg); }
+.status-chip.st-reservado { background: var(--st-res-bg); border-color: var(--st-res-bd); color: var(--st-res-fg); }
+.status-chip.st-cancelado { background: var(--st-can-bg); border-color: var(--st-can-bd); color: var(--st-can-fg); text-decoration: line-through; }
+.selo { font-size: 10.5px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; padding: 1px 7px; border-radius: 4px; border: 1px solid currentColor; white-space: nowrap; }
+.selo.pg-pago { color: var(--pg-ok); }
+.selo.pg-parcial { color: var(--pg-parcial); }
+.selo.pg-pendente { color: var(--pg-pend); }
+.selo.pg-devolvido, .selo.pg-devolvido_parcial { color: var(--pg-dev); }
+
+/* Agenda provisória (lista) */
+.secao-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.mes { display: flex; flex-direction: column; gap: 8px; }
+.mes-titulo { margin: 6px 0 0; font-family: var(--serif); font-size: 20px; font-weight: 600; text-transform: capitalize; color: var(--accent-strong); }
+.reservas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.reserva { width: 100%; display: flex; align-items: center; gap: 14px; text-align: left; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line2); border-left: 5px solid; background: var(--surface); cursor: pointer; }
+.reserva:hover { background: var(--hover); }
+.reserva.st-cadastrado { border-left-color: var(--st-cad-bd); border-left-style: dashed; }
+.reserva.st-pre_reserva { border-left-color: var(--st-pre-bd); }
+.reserva.st-reservado { border-left-color: var(--st-res-bd); }
+.reserva.st-cancelado { border-left-color: var(--st-can-bd); opacity: 0.75; }
+.reserva.st-cancelado .reserva-nome { text-decoration: line-through; }
+.reserva-dia { width: 44px; flex: none; display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.reserva-dia strong { font-family: var(--serif); font-size: 26px; font-weight: 600; }
+.reserva-dia span { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
+.reserva-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.reserva-tx > span { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.reserva-nome { font-weight: 600; overflow-wrap: anywhere; }
+.reserva-lado { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+.reserva-valor { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+
+/* Formulário da reserva */
+.modal.largo { width: min(760px, calc(100% - 32px)); }
+.modal.alto { z-index: 50; }
+.tabs-modal { margin: 0; padding: 0 18px; }
+.m-head .status-chip { margin-right: 4px; }
+.duas-colunas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.periodo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.data-hora { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 6px; }
+.caixas { display: flex; gap: 18px; flex-wrap: wrap; padding-top: 2px; }
+textarea.inp { resize: vertical; min-height: 72px; }
+.resumo-pg { border: 1px solid var(--line2); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); }
+.resumo-linha { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.resumo-linha strong { font-size: 18px; }
+.resumo-pct { color: var(--muted); font-size: 13px; }
+.resumo-linha .selo { margin-left: auto; }
+.barra { height: 8px; border-radius: 4px; background: var(--line2); overflow: hidden; }
+.barra span { display: block; height: 100%; background: var(--pg-ok); border-radius: 4px; transition: width 0.3s; }
+.auditoria { border-top: 1px solid var(--line2); padding-top: 10px; }
+.seletor { position: relative; }
+.seletor-lista { position: absolute; z-index: 5; top: 100%; left: 0; right: 0; margin: 4px 0 0; padding: 4px 0; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); max-height: 260px; overflow: auto; }
+.seletor-lista li { padding: 8px 12px; display: flex; flex-direction: column; gap: 1px; cursor: pointer; }
+.seletor-lista li span { font-size: 12px; color: var(--muted); }
+.seletor-lista li.ativo { background: var(--hover); }
+.seletor-lista li.novo { color: var(--accent-strong); font-weight: 600; border-top: 1px solid var(--line2); }
+.seletor-lista li.vazio-lista { color: var(--muted); cursor: default; font-size: 13px; }
+
+@media (max-width: 760px) {
+  .duas-colunas, .periodo { grid-template-columns: minmax(0, 1fr); }
+  .reserva { flex-wrap: wrap; }
+  .reserva-lado { flex-direction: row; align-items: center; width: 100%; justify-content: flex-end; }
+}
+@media (prefers-reduced-motion: reduce) { .barra span { transition: none; } }
+
 /* Janelas: perfil e foto */
 .modal.estreito { width: min(440px, calc(100% - 32px)); }
 .m-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 18px; border-top: 1px solid var(--line2); }
