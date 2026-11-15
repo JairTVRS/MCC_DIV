@@ -65,7 +65,7 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - v0.3.0 — Etapa 3: Usuários e Grupos (lista de espera, usuários, grupos com árvore de permissões). v0.2.x — Etapa 2: Configurações, Meu perfil/Trocar foto, contador online, `/privacidade`.
 - Tela Lista / Relatório ainda é "em construção" (etapa 10).
 - Migrações 001 a 014 aplicadas no Supabase; v0.7.0 publicada no Cloudflare (15/11/2026). Testado no localhost: mês (faixa contínua, clique em dia vazio), semana (nome na continuação). Google OAuth **em produção** (Branding com página inicial, `/privacidade` e domínios `mcc-div.pages.dev` + `rcxijihpzlsozfyxnkhy.supabase.co`; sem logotipo, para não exigir verificação).
-- **Onde paramos (15/11/2026):** v0.8.0 publicada; migrações 001 a 016 aplicadas. Testado: anexos (vários, miniatura, contadores), comentários com menção, trava do comprovante em uso. **Pendente:** testar o sino com outra conta (a Luiza não conseguiu entrar pela janela anônima). Próximo passo: escopo da etapa 9 (relógios de log e lixeira) para aprovação.
+- **Onde paramos (15/11/2026):** v0.8.0 publicada; migrações 001 a 016 aplicadas. v0.8.1 (correção do "Sair": no máximo 3 s de espera, limpa `sb-*-auth-token` e recarrega) commitada localmente, aguardando a 017 e o push. Testado: anexos (vários, miniatura, contadores), comentários com menção, trava do comprovante em uso. **Pendente:** testar o sino com outra conta (a Luiza não conseguiu entrar pela janela anônima). Próximo passo: escopo da etapa 9 (relógios de log e lixeira) para aprovação.
 - Servidor local: o Claude sobe e mantém o `npm run dev` na porta 5173 (a 5174 quebra o login Google).
 - Push: funciona daqui com `GCM_INTERACTIVE=never` (o repositório fixa a conta `JairTVRS` na config local).
 

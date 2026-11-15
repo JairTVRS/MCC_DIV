@@ -11,6 +11,7 @@ Web app para gerenciar as locações da casa de eventos: agenda contínua, reser
 
 | Versão | Data | Descrição |
 |---|---|---|
+| v0.8.1 | 15/11/2026 | "Sair" sempre funciona: não fica preso quando outra aba do app está travada (limpa a sessão e recarrega) |
 | v0.8.0 | 15/11/2026 | Etapa 8: aba Anexos da reserva (arrastar ou escolher vários arquivos, categoria, miniatura, abrir, trocar categoria, excluir), categorias de anexo em Configurações, aba Comentários com menções @ (editar o próprio, excluir), sino de notificações em tempo real (menções, pedidos de acesso, parcelas a vencer e vencidas) que abre a reserva na aba certa, clipe e balão com a quantidade no card da agenda |
 | v0.7.0 | 15/11/2026 | Etapa 7: prazos de pagamento (nome gerado das parcelas), plano sempre pelo prazo (quantidade do prazo, última parcela fecha o total), registrar pagamento com comprovante e prévia, Reservado automático no 1º pagamento ou com desconto total e volta para Cadastrado sem nada pago, devolução no cancelamento, desconto com motivo. Histórico da reserva (relógio). Agenda com cor por status e filtro de status |
 | v0.6.0 | 15/11/2026 | Etapas 5 e 6: agenda em calendário (FullCalendar) com visões Mês (padrão), Semana, Dia e Lista; mês arrasta entre dias mantendo o horário; semana/dia sem eixo de horas, arrastar e esticar em passos de 15 min; confirmação e conferência de conflito antes de gravar; celular com dia por dia e mês |

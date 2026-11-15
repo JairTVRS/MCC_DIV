@@ -158,9 +158,22 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     if (error) setErro('Não foi possível abrir o login do Google. Tente de novo em instantes.');
   }, []);
 
+  // O signOut do Supabase espera uma trava de sessão dividida entre as abas do mesmo endereço:
+  // se outra aba estiver presa, ele não volta nunca. Espera no máximo 3 s, limpa a sessão
+  // guardada no navegador e recarrega, para a saída sempre funcionar.
   const sair = useCallback(async () => {
     tentativaRegistrada.current = false;
-    await supabase.auth.signOut();
+    try {
+      await Promise.race([supabase.auth.signOut(), new Promise((r) => window.setTimeout(r, 3000))]);
+    } catch (e) {
+      console.warn('[Agenda] Sair:', e);
+    }
+    try {
+      for (const k of Object.keys(localStorage)) if (k.startsWith('sb-') && k.includes('auth-token')) localStorage.removeItem(k);
+    } catch {
+      /* armazenamento indisponível */
+    }
+    window.location.replace(`${window.location.origin}/`);
   }, []);
 
   const recarregarUsuario = useCallback(async () => {
