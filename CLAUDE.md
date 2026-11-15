@@ -53,8 +53,8 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - **v0.4.0** — Etapa 4 concluída: tela Pessoas (busca, filtro, cadastro com tipo locatário/locador/ambos) e formulário da reserva (abas Dados/Pagamento/Anexos/Comentários — só Dados funciona; seletor de pessoa com busca e cadastro rápido; responsável; 00:00–23:59; status com permissões; valor; resumo pago/total/%; aviso de conflito; excluir). Agenda provisória em lista por mês (Próximas/Anteriores/Todas) até as etapas 5–6.
 - v0.3.0 — Etapa 3: Usuários e Grupos (lista de espera, usuários, grupos com árvore de permissões). v0.2.x — Etapa 2: Configurações, Meu perfil/Trocar foto, contador online, `/privacidade`.
 - Tela Lista / Relatório ainda é "em construção" (etapa 10).
-- Migrações 001 a 008 aplicadas no Supabase; v0.4.0 publicada no Cloudflare (15/11/2026). Testado no localhost: cadastro rápido de pessoa e pré-reserva na lista.
-- **Onde paramos (15/11/2026):** etapa 4 no ar; v0.4.1 publicada, aguardando o Jair rodar a migração 009 (aponta o logo para `/marca/`). Pendência do Jair: Branding no Google Cloud + Publicar app. Próximo passo: escopo da etapa 5 para aprovação.
+- Migrações 001 a 009 aplicadas no Supabase; v0.4.1 publicada no Cloudflare (15/11/2026). Testado no localhost: cadastro rápido de pessoa e pré-reserva na lista.
+- **Onde paramos (15/11/2026):** etapa 4 no ar, logo sem fundo e ícone da aba aplicados. Pendência do Jair: Branding no Google Cloud + Publicar app. Próximo passo: escopo da etapa 5 para aprovação.
 - Servidor local: o Claude sobe e mantém o `npm run dev` na porta 5173 (a 5174 quebra o login Google).
 - Push: funciona daqui com `GCM_INTERACTIVE=never` (o repositório fixa a conta `JairTVRS` na config local).
 
