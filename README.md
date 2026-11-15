@@ -11,6 +11,7 @@ Web app para gerenciar as locações da casa de eventos: agenda contínua, reser
 
 | Versão | Data | Descrição |
 |---|---|---|
+| v0.3.0 | 15/11/2026 | Etapa 3: lista de espera com aprovação por grupo, usuários (busca, filtros, ativar/inativar, nome e grupo), grupos de usuários e árvore de permissões por módulo e função |
 | v0.2.2 | 13/11/2026 | Ícone da aba do navegador enviado à parte (imagem quadrada); sem ele, continua gerado a partir do logo |
 | v0.2.1 | 13/11/2026 | Correção do contador de usuários online (políticas do canal privado); o ícone aparece sempre e mostra quando o canal está indisponível |
 | v0.2.0 | 13/11/2026 | Etapa 2: Configurações (nome e logo do app, formas de pagamento, lixeira com restauração), Meu perfil e troca de foto com recorte, contador de usuários online, página de política de privacidade |
@@ -86,15 +87,14 @@ No [Google Cloud Console](https://console.cloud.google.com), projeto **MCCDIV**:
 ### 5. Primeiro acesso
 
 1. Abra o endereço do Cloudflare e entre com o Google usando o e-mail do passo 1.4. Você entra direto como Administrador.
-2. Qualquer outra pessoa que entrar fica com acesso **pendente** e vê a tela de espera. O pedido já fica registrado para o administrador; a tela de aprovação chega na etapa 3 e o sino na etapa 8. Até lá, libere pelo SQL Editor (a tela de espera da pessoa abre o app sozinha em até 10 segundos):
+2. Qualquer outra pessoa que entrar fica **na lista de espera** e vê a tela de espera. Aprove em **Usuários e Grupos > Lista de espera**, escolhendo o grupo; a tela de espera da pessoa abre o app sozinha em até 10 segundos.
+3. Se você entrou antes de fazer o passo 1.4 e ficou pendente, libere a si mesmo pelo SQL Editor:
 
    ```sql
    update public.usuarios
-   set status_acesso = 'ativo', perfil_id = (select id from public.perfis where nome = 'Gestor')
-   where email = 'email-da-pessoa@gmail.com';
+   set status_acesso = 'ativo', perfil_id = (select id from public.perfis where sistema)
+   where email = 'seu-email@gmail.com';
    ```
-
-3. Se você entrou antes de fazer o passo 1.4 e ficou pendente, rode o mesmo comando acima com o seu e-mail e o perfil `Administrador`.
 
 ---
 
@@ -111,7 +111,8 @@ npm run test:db              # roda todas as migrações num Postgres em memóri
 ### Como o banco protege os dados
 
 - **Acesso:** só usuário com status `ativo` lê ou grava qualquer coisa. Pendente, recusado e inativo ficam bloqueados no próprio banco.
-- **Permissões:** cada perfil tem Visualizar, Incluir, Alterar e Excluir por módulo (`permissoes`) e ações sensíveis próprias (`perfil_acoes`): marcar pago, registrar devolução, confirmar e cancelar reserva, ver log geral, administrar usuários e restaurar da lixeira.
+- **Permissões:** cada usuário pertence a um **grupo** (tabela `perfis`). O que cada grupo pode fazer é uma **árvore** módulo > função (`funcoes`), liberada por grupo (`grupo_funcoes`): ex.: Agenda > Visualizar, Incluir, Alterar, Excluir, Confirmar reserva. O banco confere com `tem_funcao('codigo')`; `tem_permissao(modulo, acao)` e `tem_acao(acao)` continuam valendo e leem a árvore. O grupo Administrador (`perfis.sistema`) tem sempre tudo; só administradores mexem em administradores; ninguém altera o próprio acesso ou grupo.
+- **Função nova:** uma migração com `insert into public.funcoes (codigo, pai, tipo, rotulo, ordem)`; ela já nasce liberada para o Administrador e aparece na árvore da tela de Grupos.
 - **Conflito de agenda:** o banco recusa pré-reserva ou reservado que se sobreponha a outra pré-reserva ou reservado. Cadastrado pode dividir a data.
 - **Exclusão lógica:** nada é apagado. Exclua e restaure pelas funções `excluir_registro(tabela, id)` e `restaurar_registro(tabela, id)`. Excluir uma reserva leva junto parcelas, anexos e comentários; restaurar traz de volta. A lixeira (`listar_lixeira()`) mostra tudo que foi excluído; item de uma reserva excluída só volta junto com ela, e restaurar uma reserva cujo horário já foi ocupado é recusado com a reserva que está no caminho.
 - **Usuários:** o nome só muda por quem administra usuários; cada um troca a própria foto, que precisa estar na sua pasta do Storage. Trocar o tema ou ver as novidades não entra no log.
@@ -123,7 +124,7 @@ npm run test:db              # roda todas as migrações num Postgres em memóri
 
 1. ✅ Projeto Supabase, tabelas, login Google e deploy inicial no Cloudflare
 2. ✅ Configurações (nome, logo, formas de pagamento, lixeira), avatar com upload, usuários online, política de privacidade
-3. Acesso: lista de espera com aprovação por grupo, status do usuário, grupos de usuários e árvore de permissões
+3. ✅ Acesso: lista de espera com aprovação por grupo, status do usuário, grupos de usuários e árvore de permissões
 4. Cadastro de pessoas e da reserva
 5. Visões semanal e diária com arrastar e redimensionar
 6. Visão mensal e lista para celular

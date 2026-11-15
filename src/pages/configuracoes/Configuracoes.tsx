@@ -16,16 +16,17 @@ function abaLembrada(): Aba {
   return 'geral';
 }
 
+/** Engrenagem: cada aba segue a sua função na árvore (Configurações > Nome, logo e ícone / Formas de pagamento / Lixeira). */
 export function Configuracoes() {
-  const { pode, temAcao } = useSessao();
-  const podeAlterar = pode('configuracoes', 'alterar');
+  const { tem } = useSessao();
   const abas: { id: Aba; titulo: string }[] = [
     { id: 'geral', titulo: 'Geral' },
     { id: 'formas', titulo: 'Formas de pagamento' },
-    ...(temAcao('restaurar_lixeira') ? [{ id: 'lixeira' as const, titulo: 'Lixeira' }] : []),
+    ...(tem('configuracoes.lixeira') ? [{ id: 'lixeira' as const, titulo: 'Lixeira' }] : []),
   ];
   const [escolhida, setEscolhida] = useState<Aba>(abaLembrada);
   const aba = abas.some((a) => a.id === escolhida) ? escolhida : 'geral';
+  const podeAlterar = aba === 'geral' ? tem('configuracoes.nome_logo') : aba === 'formas' ? tem('configuracoes.formas_pagamento') : true;
 
   function trocar(a: Aba) {
     setEscolhida(a);
@@ -46,7 +47,7 @@ export function Configuracoes() {
         ))}
       </div>
       <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`}>
-        {!podeAlterar && aba !== 'lixeira' && <p className="aviso">Só leitura: seu perfil pode ver, mas não alterar as configurações.</p>}
+        {!podeAlterar && <p className="aviso">Só leitura: seu grupo pode ver, mas não alterar esta seção.</p>}
         {aba === 'geral' && <Geral podeAlterar={podeAlterar} />}
         {aba === 'formas' && <FormasPagamento podeAlterar={podeAlterar} />}
         {aba === 'lixeira' && <Lixeira />}

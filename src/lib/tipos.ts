@@ -1,24 +1,8 @@
 export type StatusAcesso = 'pendente' | 'ativo' | 'inativo' | 'recusado';
 export type Tema = 'sistema' | 'claro' | 'escuro';
 
-export type Modulo =
-  | 'reservas'
-  | 'pagamentos'
-  | 'anexos'
-  | 'comentarios'
-  | 'pessoas'
-  | 'usuarios'
-  | 'logs'
-  | 'configuracoes';
-
-export type AcaoSensivel =
-  | 'marcar_pago'
-  | 'registrar_devolucao'
-  | 'confirmar_reserva'
-  | 'cancelar_reserva'
-  | 'ver_log_geral'
-  | 'administrar_usuarios'
-  | 'restaurar_lixeira';
+/** Código de uma função da árvore de permissões (tabela "funcoes"), ex.: 'reservas.visualizar'. */
+export type CodigoFuncao = string;
 
 export interface Usuario {
   id: string;
@@ -43,12 +27,38 @@ export interface Configuracoes {
   favicon_proprio: boolean;
 }
 
-export interface Permissao {
-  modulo: Modulo;
-  visualizar: boolean;
-  incluir: boolean;
-  alterar: boolean;
-  excluir: boolean;
+/** Grupo de usuários (no banco: tabela "perfis"). */
+export interface Grupo {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  sistema: boolean;
+}
+
+/** Nó da árvore de permissões: módulo (só agrupa) ou função (o que se libera). */
+export interface NoArvore {
+  codigo: string;
+  pai: string | null;
+  tipo: 'modulo' | 'funcao';
+  rotulo: string;
+  descricao: string | null;
+  ordem: number;
+}
+
+/** Usuário como aparece na administração (lista de espera e lista de usuários). */
+export interface UsuarioAdmin {
+  id: string;
+  nome: string;
+  email: string;
+  status_acesso: StatusAcesso;
+  perfil_id: string | null;
+  foto_google: string | null;
+  foto_upload: string | null;
+  usar_foto_upload: boolean;
+  motivo_recusa: string | null;
+  solicitado_em: string;
+  decidido_em: string | null;
+  decidido_por: string | null;
 }
 
 export interface FormaPagamento {

@@ -3,9 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { mensagemErro } from '../lib/erros';
 import { supabase, supabaseConfigurado } from '../lib/supabase';
 import { aplicarTema } from '../lib/tema';
-import type { AcaoSensivel, Configuracoes, Modulo, Permissao, Usuario } from '../lib/tipos';
-
-type AcaoCrud = 'visualizar' | 'incluir' | 'alterar' | 'excluir';
+import type { CodigoFuncao, Configuracoes, Usuario } from '../lib/tipos';
 
 interface SessaoCtx {
   carregando: boolean;
@@ -13,8 +11,10 @@ interface SessaoCtx {
   sessao: Session | null;
   usuario: Usuario | null;
   config: Configuracoes | null;
-  pode: (modulo: Modulo, acao: AcaoCrud) => boolean;
-  temAcao: (acao: AcaoSensivel) => boolean;
+  /** O grupo do usuário tem esta função da árvore de permissões (ex.: 'reservas.visualizar'). */
+  tem: (funcao: CodigoFuncao) => boolean;
+  /** Relê as permissões do grupo (depois de editar a árvore do próprio grupo). */
+  recarregarPermissoes: () => Promise<void>;
   entrarComGoogle: () => Promise<void>;
   sair: () => Promise<void>;
   recarregarUsuario: () => Promise<void>;
@@ -45,9 +45,18 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const [sessao, setSessao] = useState<Session | null>(null);
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [config, setConfig] = useState<Configuracoes | null>(null);
-  const [permissoes, setPermissoes] = useState<Permissao[]>([]);
-  const [acoes, setAcoes] = useState<Set<string>>(new Set());
+  const [funcoes, setFuncoes] = useState<Set<string>>(new Set());
   const tentativaRegistrada = useRef(false);
+
+  const carregarFuncoes = useCallback(async (perfilId: string | null) => {
+    if (!perfilId) {
+      setFuncoes(new Set());
+      return;
+    }
+    const { data, error } = await supabase.from('grupo_funcoes').select('funcao').eq('perfil_id', perfilId);
+    if (error) console.error('[Agenda] Permissões:', error.message);
+    setFuncoes(new Set((data ?? []).map((f: { funcao: string }) => f.funcao)));
+  }, []);
 
   const carregarConfig = useCallback(async () => {
     const { data, error } = await supabase.from('configuracoes').select('nome_app, logo_claro, logo_escuro, favicon, favicon_proprio').eq('id', 1).maybeSingle();
@@ -58,8 +67,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const carregarUsuario = useCallback(async (s: Session | null) => {
     if (!s) {
       setUsuario(null);
-      setPermissoes([]);
-      setAcoes(new Set());
+      setFuncoes(new Set());
       return;
     }
     const { data, error } = await supabase.from('usuarios').select(COLUNAS_USUARIO).eq('id', s.user.id).maybeSingle();
@@ -73,24 +81,14 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     setUsuario(u);
     if (u.tema_preferido !== 'sistema') aplicarTema(u.tema_preferido);
 
-    if (u.status_acesso === 'ativo' && u.perfil_id) {
-      const [perm, ac] = await Promise.all([
-        supabase.from('permissoes').select('modulo, visualizar, incluir, alterar, excluir').eq('perfil_id', u.perfil_id),
-        supabase.from('perfil_acoes').select('acao').eq('perfil_id', u.perfil_id),
-      ]);
-      setPermissoes((perm.data ?? []) as Permissao[]);
-      setAcoes(new Set((ac.data ?? []).map((a: { acao: string }) => a.acao)));
-    } else {
-      setPermissoes([]);
-      setAcoes(new Set());
-    }
+    await carregarFuncoes(u.status_acesso === 'ativo' ? u.perfil_id : null);
 
     // Quem foi recusado e tenta entrar de novo gera um novo alerta para o administrador.
     if (u.status_acesso === 'recusado' && !tentativaRegistrada.current) {
       tentativaRegistrada.current = true;
       await supabase.rpc('registrar_tentativa_acesso');
     }
-  }, []);
+  }, [carregarFuncoes]);
 
   useEffect(() => {
     if (!supabaseConfigurado) {
@@ -146,11 +144,10 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     else link.removeAttribute('type');
   }, [config]);
 
-  const pode = useCallback(
-    (modulo: Modulo, acao: AcaoCrud) => permissoes.some((p) => p.modulo === modulo && p[acao]),
-    [permissoes],
-  );
-  const temAcao = useCallback((acao: AcaoSensivel) => acoes.has(acao), [acoes]);
+  const tem = useCallback((funcao: CodigoFuncao) => funcoes.has(funcao), [funcoes]);
+  const recarregarPermissoes = useCallback(async () => {
+    await carregarFuncoes(usuario?.status_acesso === 'ativo' ? usuario.perfil_id : null);
+  }, [carregarFuncoes, usuario?.status_acesso, usuario?.perfil_id]);
 
   const entrarComGoogle = useCallback(async () => {
     setErro(null);
@@ -188,10 +185,10 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
 
   const valor = useMemo<SessaoCtx>(
     () => ({
-      carregando, erro, sessao, usuario, config, pode, temAcao, entrarComGoogle, sair, recarregarUsuario,
+      carregando, erro, sessao, usuario, config, tem, recarregarPermissoes, entrarComGoogle, sair, recarregarUsuario,
       recarregarConfig: carregarConfig, atualizarUsuario,
     }),
-    [carregando, erro, sessao, usuario, config, pode, temAcao, entrarComGoogle, sair, recarregarUsuario, carregarConfig, atualizarUsuario],
+    [carregando, erro, sessao, usuario, config, tem, recarregarPermissoes, entrarComGoogle, sair, recarregarUsuario, carregarConfig, atualizarUsuario],
   );
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

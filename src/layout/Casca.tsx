@@ -3,8 +3,10 @@ import { useSessao } from '../auth/Sessao';
 import { Icone } from '../lib/icones';
 import { supabase } from '../lib/supabase';
 import { aplicarTema, temaEfetivo } from '../lib/tema';
-import type { Modulo, VersaoApp } from '../lib/tipos';
+import type { CodigoFuncao, VersaoApp } from '../lib/tipos';
 import { Configuracoes } from '../pages/configuracoes/Configuracoes';
+import { Usuarios } from '../pages/usuarios/Usuarios';
+import { useEsperando } from '../pages/usuarios/dados';
 import { APP_VERSION } from '../version';
 import { Avatar, fotoDe } from './Avatar';
 import { Marca } from './Marca';
@@ -14,11 +16,12 @@ import { TrocarFoto } from './TrocarFoto';
 
 type Pagina = 'agenda' | 'lista' | 'pessoas' | 'usuarios' | 'configuracoes';
 
-const PAGINAS: { id: Pagina; titulo: string; icone: string; modulo: Modulo; etapa: string; descricao: string }[] = [
-  { id: 'agenda', titulo: 'Agenda', icone: 'cal', modulo: 'reservas', etapa: 'Etapas 4 a 6', descricao: 'Visões de mês, semana e dia, com arrastar e soltar e bloqueio de conflito.' },
-  { id: 'lista', titulo: 'Lista / Relatório', icone: 'list', modulo: 'reservas', etapa: 'Etapa 10', descricao: 'Tabela com filtros, colunas de auditoria e exportação.' },
-  { id: 'pessoas', titulo: 'Pessoas', icone: 'people', modulo: 'pessoas', etapa: 'Etapa 4', descricao: 'Cadastro de locatários e locadores.' },
-  { id: 'usuarios', titulo: 'Usuários e Grupos', icone: 'shield', modulo: 'usuarios', etapa: 'Etapa 3', descricao: 'Lista de espera, aprovação de acesso, status ativo/inativo, grupos e árvore de permissões.' },
+// Cada tela abre com a função "Visualizar" do seu módulo na árvore de permissões.
+const PAGINAS: { id: Pagina; titulo: string; icone: string; funcao: CodigoFuncao; etapa: string; descricao: string }[] = [
+  { id: 'agenda', titulo: 'Agenda', icone: 'cal', funcao: 'reservas.visualizar', etapa: 'Etapas 4 a 6', descricao: 'Visões de mês, semana e dia, com arrastar e soltar e bloqueio de conflito.' },
+  { id: 'lista', titulo: 'Lista / Relatório', icone: 'list', funcao: 'lista.visualizar', etapa: 'Etapa 10', descricao: 'Tabela com filtros, colunas de auditoria e exportação.' },
+  { id: 'pessoas', titulo: 'Pessoas', icone: 'people', funcao: 'pessoas.visualizar', etapa: 'Etapa 4', descricao: 'Cadastro de locatários e locadores.' },
+  { id: 'usuarios', titulo: 'Usuários e Grupos', icone: 'shield', funcao: 'usuarios.visualizar', etapa: 'Etapa 3', descricao: '' },
 ];
 
 function paginaDaUrl(): Pagina {
@@ -29,7 +32,7 @@ function paginaDaUrl(): Pagina {
 type Janela = 'perfil' | 'foto' | null;
 
 export function Casca() {
-  const { usuario, config, pode, sair, atualizarUsuario } = useSessao();
+  const { usuario, config, tem, sair, atualizarUsuario } = useSessao();
   const [pagina, setPagina] = useState<Pagina>(paginaDaUrl);
   const [menuAberto, setMenuAberto] = useState(false);
   const [avatarAberto, setAvatarAberto] = useState(false);
@@ -37,7 +40,9 @@ export function Casca() {
   const [novidades, setNovidades] = useState<VersaoApp[] | null>(null);
   const [tema, setTema] = useState(temaEfetivo());
   const avatarRef = useRef<HTMLButtonElement>(null);
-  const online = useOnline(usuario);
+  const veOnline = tem('online.visualizar');
+  const online = useOnline(veOnline ? usuario : null);
+  const espera = useEsperando(tem('usuarios.aprovar'));
 
   useEffect(() => {
     const f = () => setPagina(paginaDaUrl());
@@ -88,10 +93,10 @@ export function Casca() {
   }
 
   if (!usuario) return null;
-  const visiveis = PAGINAS.filter((p) => pode(p.modulo, 'visualizar'));
+  const visiveis = PAGINAS.filter((p) => tem(p.funcao));
   const emConfig = pagina === 'configuracoes';
   const atual = PAGINAS.find((p) => p.id === pagina) ?? PAGINAS[0];
-  const permitido = emConfig ? pode('configuracoes', 'visualizar') : visiveis.some((p) => p.id === atual.id);
+  const permitido = emConfig ? tem('configuracoes.visualizar') : visiveis.some((p) => p.id === atual.id);
   const titulo = !permitido ? 'Agenda' : emConfig ? 'Configurações' : atual.titulo;
   const foto = fotoDe(usuario);
   const rc = avatarAberto ? avatarRef.current?.getBoundingClientRect() : undefined;
@@ -107,6 +112,11 @@ export function Casca() {
             <button key={p.id} onClick={() => ir(p.id)} aria-current={pagina === p.id ? 'page' : undefined}>
               <Icone nome={p.icone} />
               {p.titulo}
+              {p.id === 'usuarios' && espera.qtd > 0 && (
+                <span className="badge" title={`${espera.qtd} na lista de espera`} aria-label={`${espera.qtd} na lista de espera`}>
+                  {espera.qtd}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -115,9 +125,9 @@ export function Casca() {
             <button className="ver" onClick={() => void abrirNovidades()} title="Ver as novidades desta versão">
               {APP_VERSION}
             </button>
-            <Online estado={online} euId={usuario.id} />
+            {veOnline && <Online estado={online} euId={usuario.id} />}
           </div>
-          {pode('configuracoes', 'visualizar') && (
+          {tem('configuracoes.visualizar') && (
             <button
               className="gear"
               onClick={() => ir('configuracoes')}
@@ -155,6 +165,8 @@ export function Casca() {
             </div>
           ) : emConfig ? (
             <Configuracoes />
+          ) : pagina === 'usuarios' ? (
+            <Usuarios onMudouEspera={espera.recarregar} />
           ) : (
             <div className="empty-stage">
               <span className="tag">{atual.etapa}</span>

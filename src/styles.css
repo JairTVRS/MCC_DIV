@@ -255,6 +255,62 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 .chip:hover { background: var(--hover); }
 .chip[aria-pressed='true'] { background: var(--btn); color: var(--btn-fg); border-color: var(--btn); }
 
+/* Usuários e Grupos */
+.pagina.larga { max-width: 1120px; }
+.badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 8px; border-radius: 10px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 600; line-height: 1; }
+.nav button .badge { margin-left: auto; }
+.btn.perigo { border-color: var(--danger); color: var(--danger); }
+.btn.perigo:hover { background: var(--danger); color: var(--surface); }
+.tag.mini { margin-left: 8px; font-size: 9.5px; padding: 1px 6px; vertical-align: 2px; }
+.filtros { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.inp.busca { width: min(280px, 100%); }
+.linha.clicavel { width: 100%; border: 0; border-top: 1px solid var(--line2); background: none; text-align: left; cursor: pointer; }
+.linhas > li:first-child > .linha.clicavel { border-top: 0; }
+.linha.clicavel:hover { background: var(--hover); }
+.linha.clicavel.ativa { background: var(--surface2); box-shadow: inset 3px 0 0 var(--accent); }
+.col-grupo { width: 150px; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.situacao { width: 90px; font-size: 12px; font-weight: 600; text-align: right; }
+.cartoes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.cartao { border: 1px solid var(--line2); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.cartao-topo { display: flex; align-items: center; gap: 12px; }
+.cartao-topo .tx, .usuario-topo .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cartao-topo .tx span, .usuario-topo .tx span { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.cartao-acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cartao-acoes .inp { flex: 1 1 220px; width: auto; }
+.usuario-topo { display: flex; align-items: center; gap: 14px; }
+.usuario-topo .situacao { width: auto; text-align: left; }
+
+.grupos { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
+.grupos-lista .linha.clicavel { min-height: 56px; }
+.grupo-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.grupo-campos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; }
+.aviso + .aviso { margin-top: -6px; }
+.secao > .aviso { margin: 0; }
+
+.arvore { border: 1px solid var(--line2); border-radius: 10px; padding: 8px 4px; background: var(--bg); }
+.arvore-nivel { list-style: none; margin: 0; padding: 0 0 0 26px; }
+.arvore > .arvore-nivel { padding-left: 8px; }
+.arvore label { display: flex; align-items: baseline; gap: 8px; padding: 5px 8px; border-radius: 6px; cursor: pointer; }
+.arvore label:hover { background: var(--hover); }
+.arvore input[type='checkbox'] { width: 16px; height: 16px; margin: 0; flex: none; accent-color: var(--accent-strong); cursor: pointer; transform: translateY(2px); }
+.arvore input:disabled { cursor: default; }
+.arvore input:disabled + * { opacity: 0.85; }
+.arvore-cab { margin-top: 4px; }
+.arvore-cab strong { font-weight: 600; }
+.arvore-qtd { margin-left: auto; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.arvore-funcao small { color: var(--muted); font-size: 11.5px; }
+.arvore-modulo + .arvore-modulo { border-top: 1px solid var(--line2); margin-top: 4px; padding-top: 2px; }
+
+@media (max-width: 900px) {
+  .grupos { grid-template-columns: minmax(0, 1fr); }
+  .grupo-campos { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .col-grupo { display: none; }
+  .situacao { width: auto; }
+  .arvore-funcao small { display: none; }
+}
+
 /* Janelas: perfil e foto */
 .modal.estreito { width: min(440px, calc(100% - 32px)); }
 .m-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 18px; border-top: 1px solid var(--line2); }

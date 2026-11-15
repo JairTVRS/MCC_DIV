@@ -32,29 +32,32 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 ## Regras de negócio já no banco (migração v0.1.0)
 
 - Acesso: login Google aberto; novo usuário entra `pendente`; só `ativo` acessa algo. Primeiro admin vem de `config_privada.admin_email`.
-- RBAC: `permissoes` (Visualizar/Incluir/Alterar/Excluir por módulo) + `perfil_acoes` (ações sensíveis). Perfis: Administrador, Gestor, Operador, Consulta.
+- (v0.3.0) Acesso por **grupos** (tabela `perfis`, coluna `usuarios.perfil_id`; um grupo por usuário) e **árvore de permissões**: `funcoes` (codigo, pai, tipo modulo|funcao, rotulo, ordem) + `grupo_funcoes` (perfil_id, funcao). O banco confere com `tem_funcao('codigo')`; `tem_permissao(m, a)` e `tem_acao(a)` são camadas de compatibilidade que leem a árvore. `permissoes` e `perfil_acoes` não existem mais (migração 007). Grupos iniciais: Administrador (`sistema = true`, sempre tudo, intocável), Gestor, Operador, Consulta.
+- **Como acrescentar uma função à árvore:** na migração da etapa, `insert into public.funcoes (codigo, pai, tipo, rotulo, descricao, ordem)` com tipo `funcao` e pai = módulo; ela já nasce liberada para o Administrador (gatilho) e aparece na tela de Grupos. No front, conferir com `tem('codigo')` da sessão; no banco, com `tem_funcao('codigo')` nas políticas e gatilhos. Liberar para outros grupos na mesma migração, se fizer sentido.
+- (v0.3.0) Usuários: aprovar/recusar = `usuarios.aprovar`; ativo↔inativo = `usuarios.ativar`; nome e grupo = `usuarios.editar`; grupos e árvore = `usuarios.grupos`. Só quem está no grupo Administrador mexe em administradores; ninguém altera o próprio acesso/grupo. Alertas de vencimento vão para o responsável + grupos com `pagamentos.alertas`; pedidos de acesso, para quem tem `usuarios.aprovar`.
 - Status do compromisso: cadastrado → pre_reserva → reservado; cancelado. Pré-reserva e reservado não podem se sobrepor (constraint de exclusão).
 - Status de pagamento calculado pelo banco (pendente, parcial, pago, devolvido, devolvido_parcial).
 - Exclusão lógica só por `excluir_registro(tabela, id)` / `restaurar_registro(tabela, id)`; cascata para parcelas, anexos e comentários.
 - `log_eventos` imutável, gravado por triggers (campo, valor anterior, novo, quem, quando).
 - Alertas de vencimento: `gerar_alertas_vencimento()` agendada no pg_cron, 07:00 de Brasília.
 - (v0.2.0) Lixeira: `listar_lixeira()` (só `restaurar_lixeira`); item de reserva excluída só volta com ela; restaurar com conflito de horário dá mensagem com a reserva que ocupa a data.
-- (v0.2.0) Nome do usuário só muda com `administrar_usuarios`; `foto_upload` precisa estar em `avatares/<id do usuário>/`; logos só do bucket `marca`; `tema_preferido` e `ultima_versao_vista` não entram no log.
-- (v0.2.0/v0.2.1) Usuários online: canal privado de presença `online` no Realtime, com políticas em `realtime.messages` (select e insert, extensões broadcast e presence) só para usuário ativo (migração 005).
+- (v0.2.0) Nome do usuário só muda com permissão de editar usuários; `foto_upload` precisa estar em `avatares/<id do usuário>/`; logos só do bucket `marca`; `tema_preferido` e `ultima_versao_vista` não entram no log.
+- (v0.2.0/v0.2.1/v0.3.0) Usuários online: canal privado de presença `online` no Realtime, com políticas em `realtime.messages` (select e insert, extensões broadcast e presence) para quem tem `online.visualizar`.
 - Rotas: o app usa só `#hash`; `/privacidade` é o arquivo estático `public/privacidade.html` (não existe `_redirects`).
 
 ## Situação atual
 
-- **v0.2.2** (ícone da aba enviado à parte: `configuracoes.favicon_proprio`, migração 006). **v0.2.1** (correção do contador online). **v0.2.0** — Etapa 2 concluída: Configurações (nome/logo com ícone da aba gerado, formas de pagamento, lixeira), Meu perfil e Trocar foto com recorte, contador de usuários online ao lado da versão, página `/privacidade`.
-- Telas Agenda, Lista, Pessoas e Usuários ainda são "em construção".
-- Migrações 001 a 006 aplicadas no Supabase. Testado no localhost: Configurações (nome e logo salvos), contador online, página de privacidade.
-- **Onde paramos (13/11/2026):** falta o Jair enviar o ícone quadrado da aba (só o globo); depois, Branding no Google Cloud + Publicar app. Próximo passo: apresentar o escopo da etapa 3 para aprovação.
+- **v0.3.0** — Etapa 3 concluída: tela Usuários e Grupos (lista de espera com aprovação por grupo, usuários com busca/filtros/ativar/inativar/nome/grupo, grupos com árvore de permissões), número da lista de espera no menu.
+- v0.2.x — Etapa 2: Configurações (nome/logo, ícone da aba próprio, formas de pagamento, lixeira), Meu perfil e Trocar foto, contador online, página `/privacidade`.
+- Telas Agenda, Lista e Pessoas ainda são "em construção".
+- Migrações 001 a 006 aplicadas no Supabase; v0.2.2 publicada no Cloudflare (15/11/2026).
+- **Onde paramos (15/11/2026):** v0.3.0 pronta no `main` local, aguardando o Jair rodar a migração 007 antes do push (o front novo lê `grupo_funcoes`). Pendências do Jair: enviar logos transparentes e ícone (`Docs/Icones/`), Branding no Google Cloud + Publicar app.
 - Servidor local: o Claude sobe e mantém o `npm run dev` na porta 5173 (a 5174 quebra o login Google).
+- Push: funciona daqui com `GCM_INTERACTIVE=never` (o repositório fixa a conta `JairTVRS` na config local).
 
 ## Próximas etapas (plano v1.8, com os ajustes do Jair)
 
-3. **(próxima)** Acesso: **lista de espera** (quem entra fica pendente; o admin aprova escolhendo o **grupo**), status ativo/inativo, **grupos de usuários** (os perfis atuais viram grupos; um grupo por usuário) e **árvore de permissões** por módulo > função, com catálogo de funções no banco substituindo `permissoes` + `perfil_acoes` (mantendo `tem_permissao`/`tem_acao` para não quebrar as regras). Inclui os nós "Usuários online > Visualizar", "Usuários > Editar dados" e as abas de Configurações.
-4. Cadastro de pessoas e da reserva (horário padrão 00:00–23:59; resumo pago/total e % na aba Dados).
+4. **(próxima)** Cadastro de pessoas e da reserva (horário padrão 00:00–23:59; resumo pago/total e % na aba Dados).
 5. Visões semanal e diária (sem eixo de horas na lateral) com arrastar e redimensionar.
 6. Visão mensal (arrastar entre dias) e lista por dia no celular.
 7. Pagamento: condições, rateio de parcelas, devolução no cancelamento.

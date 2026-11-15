@@ -20,7 +20,7 @@ Uma regra nova só conta como eficaz quando o Claude Code a reconhece e um teste
 |---|---|
 | Agente | Claude Code na extensão do VS Code (Windows 11) |
 | Shells | PowerShell 5.1 (principal) e Git Bash. Uma regra `Bash(...)` não cobre `PowerShell(...)` e vice-versa |
-| Repositório | Git, branch `main`, remoto no GitHub (repositório **público**) |
+| Repositório | Git, branch `main`, remoto no GitHub (repositório **público**). O Windows guarda duas contas do GitHub; o repositório tem `credential.https://github.com.username = JairTVRS` na config local, e o push roda com `GCM_INTERACTIVE=never` para não travar pedindo login |
 | Scripts npm | `dev` (vite), `build` (`tsc -b && vite build`), `preview`, `test:db` (PGlite em memória, `supabase/testes/migracao.test.mjs`) |
 | Banco | Supabase remoto (`rcxijihpzlsozfyxnkhy`). Migrações são rodadas **pelo Jair** no SQL Editor; o agente não acessa o banco remoto |
 | Deploy | Cloudflare Pages: **todo push no `main` publica** em https://mcc-div.pages.dev |
