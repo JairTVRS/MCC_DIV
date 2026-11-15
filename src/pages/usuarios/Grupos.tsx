@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useSessao } from '../../auth/Sessao';
 import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
@@ -7,6 +7,7 @@ import type { NoArvore } from '../../lib/tipos';
 import { ArvorePermissoes } from './ArvorePermissoes';
 import type { DadosUsuarios } from './Usuarios';
 import { lerArvore } from './dados';
+import { JanelaHistorico } from '../historico/JanelaHistorico';
 
 /** Grupos de usuários: lista à esquerda; à direita, nome, descrição e a árvore de permissões do grupo escolhido. */
 export function Grupos({ dados }: { dados: DadosUsuarios }) {
@@ -95,8 +96,10 @@ function EditorGrupo(props: {
   onExcluido: () => void;
 }) {
   const { grupoId, dados, arvore, podeGerenciar, qtdUsuarios, onSalvo, onExcluido } = props;
-  const { usuario } = useSessao();
+  const { usuario, tem } = useSessao();
   const grupo = dados.grupos.find((g) => g.id === grupoId)!;
+  const [historico, setHistorico] = useState(false);
+  const alvoHistorico = useMemo(() => ({ tipo: 'grupo' as const, id: grupoId }), [grupoId]);
   const [nome, setNome] = useState(grupo.nome);
   const [descricao, setDescricao] = useState(grupo.descricao ?? '');
   const [salvas, setSalvas] = useState<Set<string> | null>(null);
@@ -177,7 +180,13 @@ function EditorGrupo(props: {
         <span className="note">
           {marcadas.size} de {totalFuncoes} funções liberadas
         </span>
+        {tem('logs.usuario') && (
+          <button className="ib" onClick={() => setHistorico(true)} aria-label="Histórico do grupo" title="Histórico do grupo (permissões liberadas e retiradas)">
+            <Icone nome="relogio" />
+          </button>
+        )}
       </div>
+      {historico && <JanelaHistorico alvo={alvoHistorico} nome={grupo.nome} onFechar={() => setHistorico(false)} />}
       {grupo.sistema && <p className="aviso">O grupo Administrador sempre tem todas as permissões e não pode ser renomeado nem excluído.</p>}
       {meuGrupo && editavel && <p className="aviso">Este é o seu grupo: o que você mudar aqui vale para você também.</p>}
 

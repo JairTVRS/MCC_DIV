@@ -693,3 +693,67 @@ textarea.inp { resize: vertical; min-height: 72px; }
 }
 .ib.anexo-trava { color: var(--muted); cursor: help; opacity: 0.7; }
 .ib.anexo-trava:hover { background: none; border-color: transparent; }
+
+/* v1.0.0: histórico geral, pessoas inativas, relatório e novidades */
+.m-sub { display: block; font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+.ev-link { border: 0; background: none; padding: 0; color: var(--accent-strong); font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; text-align: left; }
+.eventos.com-registro .ev-tx em { font-style: normal; color: var(--muted); }
+.hist-filtros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.6fr) auto; gap: 10px; align-items: end; }
+.hist-mais { display: flex; justify-content: center; }
+.linha.inativa .tx strong { color: var(--muted); }
+.ver { position: relative; }
+.ver-novo { position: absolute; top: 3px; right: 1px; width: 7px; height: 7px; border-radius: 50%; background: var(--side-active); box-shadow: 0 0 0 2px var(--side); }
+
+.rel-filtros { display: flex; flex-direction: column; gap: 12px; }
+.rel-periodo { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.rel-periodo .campo { width: 160px; }
+.rel-periodo .chips { padding-bottom: 4px; }
+.rel-marcar { display: flex; flex-direction: column; gap: 6px; }
+.rel-linha { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.rel-linha .campo { min-width: 200px; }
+.rel-linha .rel-busca { flex: 1; }
+.rel-resumo { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.rel-resumo > div { border: 1px solid var(--line2); border-radius: 10px; padding: 10px 12px; background: var(--bg); display: flex; flex-direction: column; gap: 2px; }
+.rel-resumo span { font-size: 11.5px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); }
+.rel-resumo strong { font-size: 19px; font-variant-numeric: tabular-nums; }
+.rel-resumo .ok strong { color: var(--pg-ok); }
+.rel-resumo .perigo strong { color: var(--danger); }
+.selo.sit-paga { color: var(--pg-ok); }
+.selo.sit-vencida { color: var(--danger); }
+.selo.sit-a_vencer { color: var(--pg-pend); }
+.selo.sit-encerrada { color: var(--muted); }
+
+.tabela-rel { display: flex; flex-direction: column; gap: 8px; }
+.tabela-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tabela-barra .btn.peq { display: inline-flex; align-items: center; gap: 6px; }
+.multi-lista.direita { right: 0; left: auto; max-height: 360px; overflow: auto; }
+.tabela-rolagem { overflow: auto; border: 1px solid var(--line2); border-radius: 10px; max-height: min(70vh, 720px); }
+.tabela-rolagem table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tabela-rolagem th, .tabela-rolagem td { padding: 7px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line2); }
+.tabela-rolagem th { position: sticky; top: 0; z-index: 1; background: var(--surface2); }
+.tabela-rolagem th button { border: 0; background: none; padding: 0; font: inherit; font-size: 11.5px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.tabela-rolagem th[aria-sort] button { color: var(--fg); }
+.tabela-rolagem .num { text-align: right; font-variant-numeric: tabular-nums; }
+.tabela-rolagem th.num button { flex-direction: row-reverse; }
+.tabela-rolagem tbody tr:nth-child(even) { background: var(--bg); }
+.tabela-rolagem tbody tr.clicavel { cursor: pointer; }
+.tabela-rolagem tbody tr.clicavel:hover { background: var(--hover); }
+.tabela-rolagem tfoot td { position: sticky; bottom: 0; background: var(--surface2); font-weight: 700; border-bottom: 0; border-top: 1px solid var(--line); }
+.tabela-rolagem .status-chip { font-size: 10.5px; }
+
+@media (max-width: 900px) {
+  .hist-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hist-filtros .hist-busca { grid-column: 1 / -1; }
+  .rel-resumo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .rel-periodo .campo, .rel-linha .campo { width: auto; min-width: 0; flex: 1 1 140px; }
+  .eventos > li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .eventos > li .ev-quem { white-space: normal; }
+}
+@media print {
+  .side, .top, .tabela-barra, .rel-filtros, .tabs { display: none !important; }
+  .content { padding: 0; overflow: visible; }
+  .tabela-rolagem { max-height: none; overflow: visible; border: 0; }
+  .tabela-rolagem th { position: static; }
+}

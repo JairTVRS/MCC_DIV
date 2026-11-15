@@ -186,7 +186,8 @@ ok(!!await erro(()=>as(A,`delete from formas_pagamento where id='${fc.id}'`)),'f
 
 console.log('12. Lixeira (v0.2.0)');
 const [pz]=await as(A,`insert into pessoas(nome,tipo) values('Pessoa Excluída','locatario') returning id`);
-await as(A,`select excluir_registro('pessoas','${pz.id}')`);
+e=await erro(()=>as(A,`select excluir_registro('pessoas','${pz.id}')`));
+ok(!!e&&/Pessoas não são excluídas: use Inativar/.test(e),'pessoa não vai para a lixeira: só inativa (v1.0.0)');
 await as(C,`select excluir_registro('locacoes','${r2.id}')`);
 const [p1]=await su(`select id from parcelas where locacao_id=$1 and numero=1`,[r1.id]);
 await as(A,`select excluir_registro('parcelas','${p1.id}')`);
@@ -196,7 +197,7 @@ let lx=await as(A,`select * from listar_lixeira()`);
 const itR2=lx.find(i=>i.id===r2.id);
 ok(!!itR2&&/Mariana/.test(itR2.descricao)&&/leva junto 1 parcela, 1 comentário/.test(itR2.detalhe)&&itR2.excluido_por_nome==='gestor','reserva aparece com o que leva junto e quem excluiu');
 ok(!lx.some(i=>i.tabela!=='locacoes'&&/21\/11\/2026/.test(i.detalhe)),'parcelas e comentários da reserva excluída não aparecem soltos');
-ok(lx.some(i=>i.tabela==='pessoas'&&i.descricao==='Pessoa Excluída'),'pessoa excluída aparece');
+ok(!lx.some(i=>i.tabela==='pessoas'),'nenhuma pessoa na lixeira');
 ok(lx.some(i=>i.tabela==='parcelas'&&/Parcela 1 · R\$ 1\.800,00/.test(i.descricao)),'parcela excluída sozinha aparece com valor em reais');
 const [pr2]=await su(`select id from parcelas where locacao_id=$1`,[r2.id]);
 e=await erro(()=>as(A,`select restaurar_registro('parcelas','${pr2.id}')`));
@@ -205,8 +206,9 @@ await as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim,status_compr
 e=await erro(()=>as(A,`select restaurar_registro('locacoes','${r2.id}')`));
 ok(!!e&&/horário já está ocupado pela reserva de Mariana em 21\/11\/2026 \(20:00 às 22:00\)/.test(e),'restaurar com conflito de horário explica qual reserva ocupa a data');
 ok((await su(`select excluido from locacoes where id=$1`,[r2.id]))[0].excluido===true,'reserva com conflito continua na lixeira');
-await as(A,`select restaurar_registro('pessoas','${pz.id}')`);
-ok((await su(`select excluido from pessoas where id=$1`,[pz.id]))[0].excluido===false,'administrador restaura pessoa');
+await as(A,`update pessoas set ativo=false where id='${pz.id}'`);
+await as(A,`update pessoas set ativo=true where id='${pz.id}'`);
+ok((await su(`select ativo, excluido from pessoas where id=$1`,[pz.id])).every(p=>p.ativo===true&&p.excluido===false),'administrador inativa e reativa pessoa');
 ok((await su(`select numero from versoes_app where numero in ('v0.2.0','v0.2.1','v0.2.2')`)).length===3,'novidades da v0.2.0, v0.2.1 e v0.2.2 registradas');
 
 console.log('13. Grupos e árvore de permissões (v0.3.0)');
@@ -216,7 +218,7 @@ const funcoesDe=async(nome)=>(await su(`select g.funcao from grupo_funcoes g joi
 ok((await su(`select to_regclass('public.permissoes') t, to_regclass('public.perfil_acoes') a`)).every(r=>r.t===null&&r.a===null),'tabelas antigas de permissão saíram');
 const totalFuncoes=(await su(`select count(*)::int n from funcoes where tipo='funcao'`))[0].n;
 ok((await funcoesDe('Administrador')).length===totalFuncoes,`Administrador tem todas as ${totalFuncoes} funções`);
-ok(JSON.stringify(await funcoesDe('Consulta'))===JSON.stringify(['lista.visualizar','logs.reserva','online.visualizar','reservas.visualizar']),'Consulta: só ver agenda, lista, histórico da reserva e online');
+ok(JSON.stringify(await funcoesDe('Consulta'))===JSON.stringify(['lista.visualizar','logs.pessoa','logs.reserva','online.visualizar','reservas.visualizar']),'Consulta: só ver agenda, lista, histórico da reserva/pessoa e online');
 const fg=await funcoesDe('Gestor');
 ok(fg.includes('pagamentos.marcar_pago')&&fg.includes('pagamentos.alertas')&&fg.includes('configuracoes.lixeira')===false&&fg.includes('usuarios.aprovar')===false,'Gestor: marca pago e recebe alertas; sem lixeira e sem aprovar acessos');
 const fo=await funcoesDe('Operador');
@@ -279,9 +281,9 @@ ok((await as(B,`select conflito_reserva('2026-12-05 18:00-03','2026-12-05 22:00-
 ok((await as(B,`select conflito_reserva('2026-12-06 00:00-03','2026-12-06 23:59-03') t`))[0].t===null,'dia seguinte livre (00:00 não bate com 23:59 da véspera)');
 ok(!!await erro(()=>as(F,`select conflito_reserva('2026-12-05 18:00-03','2026-12-05 22:00-03')`)),'quem não vê a agenda não consulta conflito');
 const [pz2]=await as(A,`insert into pessoas(nome,tipo) values('Zé Ambos','ambos') returning id`);
-await as(A,`select excluir_registro('pessoas','${pz2.id}')`);
-ok((await as(A,`select * from listar_lixeira() where id='${pz2.id}'`))[0].detalhe==='Locatário e locador','lixeira mostra "Locatário e locador"');
-ok(!!await erro(()=>as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim) values($1,$1,'2026-12-10 00:00-03','2026-12-10 23:59-03')`,[pz2.id])),'pessoa na lixeira não entra em reserva nova');
+await as(A,`update pessoas set ativo=false where id='${pz2.id}'`);
+e=await erro(()=>as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim) values($1,$1,'2026-12-10 00:00-03','2026-12-10 23:59-03')`,[pz2.id]));
+ok(!!e&&/locatário está inativo/.test(e),'pessoa inativa não entra em reserva nova');
 
 console.log('15. Pagamento: prazos, plano, reservado automático e devolução (v0.7.0)');
 ok((await as(A,`select nome from prazos_pagamento order by ordem`)).map(p=>p.nome).join('|')==='À vista|30 dias|50% antecipado + 30/60/90|30/45/60','prazos iniciais com o nome gerado das parcelas');
@@ -437,6 +439,54 @@ const [axd]=await as(A,`insert into anexos(locacao_id,parcela_id,nome_arquivo,ca
 await as(A,`update parcelas set comprovante_id='${axd.id}' where id='${pxv.id}'`);
 await as(A,`select excluir_registro('locacoes','${rx.id}')`);
 ok((await su(`select excluido from anexos where id=$1`,[axd.id]))[0].excluido===true,'excluir a reserva leva junto o comprovante em uso');
+
+console.log('17. v1.0.0: pessoas inativas, histórico e permissões por grupo');
+ok((await su(`select count(*)::int n from funcoes where codigo='pessoas.excluir'`))[0].n===0,'"Pessoas > Excluir" saiu da árvore');
+ok((await funcoesDe('Administrador')).includes('pessoas.inativar')&&!(await funcoesDe('Gestor')).includes('pessoas.inativar')&&!(await funcoesDe('Operador')).includes('pessoas.inativar'),'"Inativar e reativar" ficou com quem podia excluir (só Administrador)');
+const [pi]=await as(A,`insert into pessoas(nome,tipo) values('Paula Inativa','ambos') returning id`);
+const [rpi]=await as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim,valor_total) values($1,$1,'2027-04-03 00:00-03','2027-04-03 23:59-03',900) returning id`,[pi.id]);
+ok(!!await erro(()=>as(C,`update pessoas set ativo=false where id='${pi.id}'`)),'gestor (sem "Inativar") não inativa pessoa');
+await as(A,`update pessoas set ativo=false where id='${pi.id}'`);
+ok((await su(`select ativo from pessoas where id=$1`,[pi.id]))[0].ativo===false,'administrador inativa pessoa');
+await as(A,`update locacoes set valor_total=950, observacoes='Mantém a pessoa inativa' where id='${rpi.id}'`);
+ok(Number((await su(`select valor_total from locacoes where id=$1`,[rpi.id]))[0].valor_total)===950,'reserva antiga com pessoa inativa continua editável');
+const [gIn]=await as(A,`insert into perfis(nome) values('Só inativa') returning id`);
+await as(A,`insert into grupo_funcoes(perfil_id,funcao) values ('${gIn.id}','pessoas.visualizar'),('${gIn.id}','pessoas.inativar')`);
+await as(A,`update usuarios set perfil_id='${gIn.id}' where id='${G}'`);
+ok(!!await erro(()=>as(G,`update pessoas set nome='Outro nome' where id='${pi.id}'`)),'quem só inativa não muda os dados da pessoa');
+await as(G,`update pessoas set ativo=true where id='${pi.id}'`);
+ok((await su(`select ativo from pessoas where id=$1`,[pi.id]))[0].ativo===true,'quem tem "Inativar e reativar" reativa');
+await as(A,`update usuarios set perfil_id='${g2.id}' where id='${G}'`);
+// Histórico
+let hg=await as(A,`select * from historico(p_tabelas=>array['pessoas'], p_registro=>'${pi.id}')`);
+ok(hg.some(h=>h.campo==='ativo'&&h.valor_novo==='false')&&hg.every(h=>h.registro==='Paula Inativa'),'histórico da pessoa com o nome dela e a inativação');
+ok((await as(A,`select * from historico(p_busca=>'Paula Inativa', p_limite=>50)`)).length>0,'histórico geral busca pelo nome do registro');
+ok((await as(A,`select * from historico(p_usuario=>'${C}', p_limite=>500)`)).every(h=>h.usuario_id===C),'histórico geral filtra por quem fez');
+const pag1=await as(A,`select * from historico(p_limite=>5)`);
+const pag2=await as(A,`select * from historico(p_antes=>${pag1[4].id}, p_limite=>5)`);
+ok(pag1.length===5&&pag2.length===5&&pag2[0].id<pag1[4].id,'histórico geral carrega por páginas');
+ok((await as(C,`select * from historico(p_limite=>5)`)).length===5,'gestor (com "Log geral") vê o histórico geral');
+ok(!!await erro(()=>as(B,`select * from historico()`)),'operador (sem log geral) não vê o histórico geral');
+ok((await as(B,`select * from historico(p_tabelas=>array['pessoas'], p_registro=>'${pi.id}')`)).length>0,'operador vê o histórico da pessoa');
+ok(!!await erro(()=>as(B,`select * from historico(p_tabelas=>array['usuarios'], p_registro=>'${B}')`)),'operador (sem histórico dos usuários) não vê o de um usuário');
+await as(A,`insert into grupo_funcoes(perfil_id,funcao) values ('${gr.id}','logs.usuario')`);
+ok((await as(E,`select * from historico(p_tabelas=>array['usuarios'], p_registro=>'${B}')`)).some(h=>h.campo==='perfil_id'),'quem tem "Histórico dos usuários" vê as trocas de grupo');
+ok(!!await erro(()=>as(E,`select * from historico(p_tabelas=>array['pessoas','usuarios'], p_registro=>'${B}')`)),'não dá para misturar tabelas para furar a permissão');
+// Permissões por grupo (resumo do que cada um pode)
+const [cs]=await su(`select id from perfis where nome='Consulta'`);
+const H='00000000-0000-0000-0000-000000000088';
+await su(`insert into auth.users(id,email) values ($1,'consulta@exemplo.com')`,[H]);
+await as(A,`update usuarios set status_acesso='ativo', perfil_id='${cs.id}' where id='${H}'`);
+ok((await as(H,`select id from locacoes where not excluido`)).length>0,'Consulta vê a agenda');
+ok(!!await erro(()=>as(H,`insert into locacoes(locatario_id,locador_id,inicio,fim) values($1,$2,'2027-05-01 00:00-03','2027-05-01 23:59-03')`,[loc1.id,lr.id])),'Consulta não inclui reserva');
+ok((await as(H,`select * from parcelas`)).length===0,'Consulta não vê pagamentos');
+ok((await as(H,`select * from anexos`)).length===0&&(await as(H,`select * from comentarios`)).length===0,'Consulta não vê anexos nem comentários');
+ok(!!await erro(()=>as(H,`insert into pessoas(nome,tipo) values('X','locatario')`)),'Consulta não cadastra pessoa');
+ok(!!await erro(()=>as(H,`select * from listar_lixeira()`)),'Consulta não vê a lixeira');
+ok(!!await erro(()=>as(B,`update locacoes set status_compromisso='reservado' where id='${rpi.id}'`)),'Operador não confirma reserva');
+ok(!!await erro(()=>as(B,`select excluir_registro('locacoes','${rpi.id}')`)),'Operador não exclui reserva');
+ok(!!await erro(()=>as(C,`select * from listar_lixeira()`)),'Gestor não vê a lixeira');
+ok((await su(`select numero from versoes_app where numero='v1.0.0'`)).length===1,'novidades da v1.0.0 registradas');
 
 console.log(falhas?`\n${falhas} FALHA(S)`:'\nTODOS OS TESTES PASSARAM');
 process.exit(falhas?1:0);

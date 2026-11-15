@@ -9,6 +9,7 @@ import type { Mudanca, VisaoCalendario } from './Calendario';
 import { ConfirmarMudanca } from './ConfirmarMudanca';
 import { COLUNAS_RESERVA, FormReserva, normalizarReserva, type AbaReserva, type UsuarioCurto } from './FormReserva';
 import { ListaReservas } from './ListaReservas';
+import { carregarBase, type Contadores } from './base';
 import { COMPROMISSO, dataLocal } from './formatos';
 
 const STATUS: StatusCompromisso[] = ['cadastrado', 'pre_reserva', 'reservado', 'cancelado'];
@@ -93,8 +94,6 @@ const VISOES_CELULAR: { id: Visao; titulo: string }[] = [
 ];
 const CELULAR = '(max-width: 760px)';
 
-/** Quantos anexos e comentários cada reserva tem (ícones no card). */
-export type Contadores = Map<string, { anexos: number; comentarios: number }>;
 
 /** Pedido para abrir uma reserva vindo da URL (sino): "#agenda?r=<id>&aba=comentarios&c=<comentário>". */
 function pedidoDaUrl(): { id: string; aba?: AbaReserva; comentario?: string } | null {
@@ -167,30 +166,12 @@ export function Agenda() {
 
   const carregar = useCallback(async () => {
     try {
-      const [r, p, u, g, c] = await Promise.all([
-        supabase.from('locacoes').select(COLUNAS_RESERVA).eq('excluido', false).order('inicio'),
-        supabase.from('pessoas').select('id, nome, tipo, telefone, email, documento').eq('excluido', false).order('nome'),
-        supabase.from('usuarios').select('id, nome, status_acesso, perfil_id, foto_google, foto_upload, usar_foto_upload').order('nome'),
-        supabase.from('grupo_funcoes').select('perfil_id').eq('funcao', 'reservas.visualizar'),
-        supabase.rpc('contadores_reservas'),
-      ]);
-      const falha = r.error ?? p.error ?? u.error ?? g.error;
-      if (falha) throw falha;
-      // Contadores são só enfeite do card: se falharem (ex.: migração 015 ainda não rodou), a agenda segue sem eles.
-      setContadores(
-        new Map(((c.data ?? []) as { locacao_id: string; anexos: number; comentarios: number }[]).map((x) => [x.locacao_id, { anexos: Number(x.anexos), comentarios: Number(x.comentarios) }])),
-      );
-      const gruposAgenda = new Set((g.data ?? []).map((x: { perfil_id: string }) => x.perfil_id));
+      const [r, base] = await Promise.all([supabase.from('locacoes').select(COLUNAS_RESERVA).eq('excluido', false).order('inicio'), carregarBase()]);
+      if (r.error) throw r.error;
+      setContadores(base.contadores);
       setReservas((r.data ?? []).map(normalizarReserva));
-      setPessoas((p.data ?? []) as Pessoa[]);
-      setUsuarios(
-        (u.data ?? []).map((x: { id: string; nome: string; status_acesso: string; perfil_id: string | null; foto_google: string | null; foto_upload: string | null; usar_foto_upload: boolean }) => ({
-          id: x.id,
-          nome: x.nome,
-          foto: x.usar_foto_upload && x.foto_upload ? x.foto_upload : x.foto_google,
-          responsavel: x.status_acesso === 'ativo' && !!x.perfil_id && gruposAgenda.has(x.perfil_id),
-        })),
-      );
+      setPessoas(base.pessoas);
+      setUsuarios(base.usuarios);
       setErro(null);
     } catch (e) {
       setErro(mensagemErro(e));

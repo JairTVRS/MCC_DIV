@@ -23,7 +23,8 @@ export function SeletorPessoa({ rotulo, tipo, pessoas, valor, desabilitado, pode
   const [aberto, setAberto] = useState(false);
   const [destaque, setDestaque] = useState(0);
 
-  const candidatos = useMemo(() => pessoas.filter((p) => (tipo === 'locatario' ? ehLocatario(p.tipo) : ehLocador(p.tipo))), [pessoas, tipo]);
+  // Inativa não aparece para escolher (a que já está na reserva continua).
+  const candidatos = useMemo(() => pessoas.filter((p) => p.ativo !== false && (tipo === 'locatario' ? ehLocatario(p.tipo) : ehLocador(p.tipo))), [pessoas, tipo]);
   const termo = semAcento((texto ?? '').trim());
   const opcoes = candidatos.filter((p) => !termo || semAcento(`${p.nome} ${p.telefone ?? ''} ${p.documento ?? ''}`).includes(termo)).slice(0, 8);
   const mostrarCadastro = podeCadastrar && (texto ?? '').trim().length > 0;
@@ -68,7 +69,7 @@ export function SeletorPessoa({ rotulo, tipo, pessoas, valor, desabilitado, pode
         autoComplete="off"
         disabled={desabilitado}
         placeholder={`Buscar ${tipo === 'locatario' ? 'locatário' : 'locador'}…`}
-        value={texto ?? escolhida?.nome ?? ''}
+        value={texto ?? (escolhida ? `${escolhida.nome}${escolhida.ativo === false ? ' (inativa)' : ''}` : '')}
         onFocus={(e) => {
           e.target.select();
           setAberto(true);

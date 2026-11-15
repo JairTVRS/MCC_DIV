@@ -429,7 +429,7 @@ export function FormReserva({ reserva, diaInicial, pessoas, usuarios, onPessoaNo
           }}
         />
       )}
-      {historico && atual && <Historico locacaoId={atual.id} pessoas={pessoas} usuarios={usuarios} onFechar={() => setHistorico(false)} />}
+      {historico && atual && <Historico locacaoId={atual.id} onFechar={() => setHistorico(false)} />}
       {devolucao && atual && (
         <RegistrarDevolucao
           reservaId={atual.id}

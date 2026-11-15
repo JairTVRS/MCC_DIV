@@ -19,6 +19,8 @@ const PLURAL: Record<TabelaLixeira, string> = {
   pessoas: 'Pessoas',
 };
 
+const semAcento = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
 function quando(iso: string | null): string {
   if (!iso) return '';
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
@@ -31,6 +33,7 @@ export function Lixeira() {
   const [restaurando, setRestaurando] = useState<string | null>(null);
   const [erro, setErro] = useState<{ id: string | null; msg: string } | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [busca, setBusca] = useState('');
 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase.rpc('listar_lixeira');
@@ -65,16 +68,22 @@ export function Lixeira() {
   const contagem = itens.reduce<Partial<Record<TabelaLixeira, number>>>((acc, i) => ({ ...acc, [i.tabela]: (acc[i.tabela] ?? 0) + 1 }), {});
   // Se o último item de um tipo foi restaurado, o filtro volta para "Todos".
   const filtroAtivo = filtro !== 'todos' && !contagem[filtro] ? 'todos' : filtro;
-  const visiveis = filtroAtivo === 'todos' ? itens : itens.filter((i) => i.tabela === filtroAtivo);
+  const termo = semAcento(busca.trim());
+  const visiveis = itens.filter(
+    (i) =>
+      (filtroAtivo === 'todos' || i.tabela === filtroAtivo) &&
+      (!termo || semAcento(`${i.descricao} ${i.detalhe ?? ''} ${i.excluido_por_nome ?? ''}`).includes(termo)),
+  );
 
   return (
     <section className="secao">
       <h3>Lixeira</h3>
       <p className="note">
-        Nada é apagado de verdade: o que foi excluído some do app e fica aqui. Itens excluídos junto com uma reserva voltam com ela.
+        Nada é apagado de verdade: o que foi excluído some do app e fica aqui. Itens excluídos junto com uma reserva voltam com ela. Pessoas não vêm para a lixeira: são inativadas na tela Pessoas.
       </p>
 
       {itens.length > 0 && (
+        <div className="filtros">
         <div className="chips" role="group" aria-label="Filtrar por tipo">
           <button className="chip" aria-pressed={filtroAtivo === 'todos'} onClick={() => setFiltro('todos')}>
             Todos · {itens.length}
@@ -86,6 +95,8 @@ export function Lixeira() {
                 {PLURAL[t]} · {contagem[t]}
               </button>
             ))}
+        </div>
+          <input className="inp busca" type="search" value={busca} placeholder="Buscar pelo nome, reserva ou quem excluiu" aria-label="Buscar na lixeira" onChange={(e) => setBusca(e.target.value)} />
         </div>
       )}
 
@@ -102,6 +113,8 @@ export function Lixeira() {
 
       {itens.length === 0 ? (
         <p className="vazio">A lixeira está vazia. O que for excluído no app aparece aqui.</p>
+      ) : visiveis.length === 0 ? (
+        <p className="vazio">Nada encontrado na lixeira com essa busca.</p>
       ) : (
         <ul className="linhas">
           {visiveis.map((i) => (

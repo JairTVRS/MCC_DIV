@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSessao } from '../../auth/Sessao';
 import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
@@ -7,6 +7,7 @@ import type { StatusAcesso, UsuarioAdmin } from '../../lib/tipos';
 import { Avatar, fotoDe } from '../../layout/Avatar';
 import type { DadosUsuarios } from './Usuarios';
 import { SITUACAO, dataHora } from './dados';
+import { JanelaHistorico } from '../historico/JanelaHistorico';
 
 type Filtro = StatusAcesso | 'todos';
 const FILTROS: { id: Filtro; rotulo: string }[] = [
@@ -84,6 +85,8 @@ function DetalheUsuario({ u, dados, onFechar }: { u: UsuarioAdmin; dados: DadosU
   const [grupo, setGrupo] = useState(u.perfil_id ?? '');
   const [motivo, setMotivo] = useState('');
   const [confirmar, setConfirmar] = useState<'inativar' | 'recusar' | null>(null);
+  const [historico, setHistorico] = useState(false);
+  const alvoHistorico = useMemo(() => ({ tipo: 'usuario' as const, id: u.id }), [u.id]);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -126,6 +129,11 @@ function DetalheUsuario({ u, dados, onFechar }: { u: UsuarioAdmin; dados: DadosU
       <div className="modal" role="dialog" aria-modal="true" aria-label={`Usuário ${u.nome}`}>
         <div className="m-head">
           <h2>Usuário</h2>
+          {tem('logs.usuario') && (
+            <button className="ib" onClick={() => setHistorico(true)} aria-label="Histórico do usuário" title="Histórico do usuário">
+              <Icone nome="relogio" />
+            </button>
+          )}
           <button className="ib" onClick={onFechar} aria-label="Fechar" disabled={ocupado}>
             <Icone nome="x" />
           </button>
@@ -237,6 +245,7 @@ function DetalheUsuario({ u, dados, onFechar }: { u: UsuarioAdmin; dados: DadosU
           )}
         </div>
       </div>
+      {historico && <JanelaHistorico alvo={alvoHistorico} nome={u.nome} onFechar={() => setHistorico(false)} />}
     </>
   );
 }

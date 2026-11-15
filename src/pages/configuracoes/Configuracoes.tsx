@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useSessao } from '../../auth/Sessao';
+import { HistoricoGeral } from '../historico/HistoricoGeral';
 import { CategoriasAnexo } from './CategoriasAnexo';
 import { FormasPagamento } from './FormasPagamento';
 import { Geral } from './Geral';
 import { Lixeira } from './Lixeira';
 import { PrazosPagamento } from './PrazosPagamento';
 
-type Aba = 'geral' | 'formas' | 'prazos' | 'categorias' | 'lixeira';
-const ABAS: Aba[] = ['geral', 'formas', 'prazos', 'categorias', 'lixeira'];
+type Aba = 'geral' | 'formas' | 'prazos' | 'categorias' | 'historico' | 'lixeira';
+const ABAS: Aba[] = ['geral', 'formas', 'prazos', 'categorias', 'historico', 'lixeira'];
 
 function abaLembrada(): Aba {
   try {
@@ -19,23 +20,35 @@ function abaLembrada(): Aba {
   return 'geral';
 }
 
-/** Engrenagem: cada aba segue a sua função na árvore (Configurações > Nome, logo e ícone / Formas / Prazos / Lixeira). */
+/** Quem vê a engrenagem: quem tem Configurações > Visualizar, a lixeira ou o histórico geral. */
+export function veEngrenagem(tem: (f: string) => boolean): boolean {
+  return tem('configuracoes.visualizar') || tem('configuracoes.lixeira') || tem('logs.geral');
+}
+
+/** Engrenagem: cada aba segue a sua função na árvore. */
 export function Configuracoes() {
   const { tem } = useSessao();
+  const veConfig = tem('configuracoes.visualizar');
   const abas: { id: Aba; titulo: string }[] = [
-    { id: 'geral', titulo: 'Geral' },
-    { id: 'formas', titulo: 'Formas de pagamento' },
-    { id: 'prazos', titulo: 'Prazos de pagamento' },
-    { id: 'categorias', titulo: 'Categorias de anexo' },
+    ...(veConfig
+      ? [
+          { id: 'geral' as const, titulo: 'Geral' },
+          { id: 'formas' as const, titulo: 'Formas de pagamento' },
+          { id: 'prazos' as const, titulo: 'Prazos de pagamento' },
+          { id: 'categorias' as const, titulo: 'Categorias de anexo' },
+        ]
+      : []),
+    ...(tem('logs.geral') ? [{ id: 'historico' as const, titulo: 'Histórico' }] : []),
     ...(tem('configuracoes.lixeira') ? [{ id: 'lixeira' as const, titulo: 'Lixeira' }] : []),
   ];
   const [escolhida, setEscolhida] = useState<Aba>(abaLembrada);
-  const aba = abas.some((a) => a.id === escolhida) ? escolhida : 'geral';
+  const aba = abas.some((a) => a.id === escolhida) ? escolhida : abas[0]?.id ?? 'geral';
   const podeAlterar = {
     geral: tem('configuracoes.nome_logo'),
     formas: tem('configuracoes.formas_pagamento'),
     prazos: tem('configuracoes.prazos'),
     categorias: tem('configuracoes.categorias_anexo'),
+    historico: true,
     lixeira: true,
   }[aba];
 
@@ -49,7 +62,7 @@ export function Configuracoes() {
   }
 
   return (
-    <div className="pagina">
+    <div className={`pagina${aba === 'historico' ? ' larga' : ''}`}>
       <div className="tabs" role="tablist" aria-label="Seções das configurações">
         {abas.map((a) => (
           <button key={a.id} role="tab" id={`aba-${a.id}`} aria-selected={aba === a.id} aria-controls={`painel-${a.id}`} onClick={() => trocar(a.id)}>
@@ -63,6 +76,7 @@ export function Configuracoes() {
         {aba === 'formas' && <FormasPagamento podeAlterar={podeAlterar} />}
         {aba === 'prazos' && <PrazosPagamento podeAlterar={podeAlterar} />}
         {aba === 'categorias' && <CategoriasAnexo podeAlterar={podeAlterar} />}
+        {aba === 'historico' && <HistoricoGeral />}
         {aba === 'lixeira' && <Lixeira />}
       </div>
     </div>

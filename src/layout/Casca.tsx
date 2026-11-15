@@ -5,7 +5,8 @@ import { supabase } from '../lib/supabase';
 import { aplicarTema, temaEfetivo } from '../lib/tema';
 import type { CodigoFuncao, VersaoApp } from '../lib/tipos';
 import { Agenda } from '../pages/agenda/Agenda';
-import { Configuracoes } from '../pages/configuracoes/Configuracoes';
+import { Configuracoes, veEngrenagem } from '../pages/configuracoes/Configuracoes';
+import { Relatorio } from '../pages/lista/Relatorio';
 import { Pessoas } from '../pages/pessoas/Pessoas';
 import { Usuarios } from '../pages/usuarios/Usuarios';
 import { useEsperando } from '../pages/usuarios/dados';
@@ -22,7 +23,7 @@ type Pagina = 'agenda' | 'lista' | 'pessoas' | 'usuarios' | 'configuracoes';
 // Cada tela abre com a função "Visualizar" do seu módulo na árvore de permissões.
 const PAGINAS: { id: Pagina; titulo: string; icone: string; funcao: CodigoFuncao; etapa: string; descricao: string }[] = [
   { id: 'agenda', titulo: 'Agenda', icone: 'cal', funcao: 'reservas.visualizar', etapa: 'Etapas 4 a 6', descricao: 'Visões de mês, semana e dia, com arrastar e soltar e bloqueio de conflito.' },
-  { id: 'lista', titulo: 'Lista / Relatório', icone: 'list', funcao: 'lista.visualizar', etapa: 'Etapa 10', descricao: 'Tabela com filtros, colunas de auditoria e exportação.' },
+  { id: 'lista', titulo: 'Lista / Relatório', icone: 'list', funcao: 'lista.visualizar', etapa: '', descricao: '' },
   { id: 'pessoas', titulo: 'Pessoas', icone: 'people', funcao: 'pessoas.visualizar', etapa: 'Etapa 4', descricao: 'Cadastro de locatários e locadores.' },
   { id: 'usuarios', titulo: 'Usuários e Grupos', icone: 'shield', funcao: 'usuarios.visualizar', etapa: 'Etapa 3', descricao: '' },
 ];
@@ -96,9 +97,11 @@ export function Casca() {
   const visiveis = PAGINAS.filter((p) => tem(p.funcao));
   const emConfig = pagina === 'configuracoes';
   const atual = PAGINAS.find((p) => p.id === pagina) ?? PAGINAS[0];
-  const permitido = emConfig ? tem('configuracoes.visualizar') : visiveis.some((p) => p.id === atual.id);
+  const permitido = emConfig ? veEngrenagem(tem) : visiveis.some((p) => p.id === atual.id);
   const titulo = !permitido ? 'Agenda' : emConfig ? 'Configurações' : atual.titulo;
   const foto = fotoDe(usuario);
+  // Pontinho na versão: há versão nova que a pessoa ainda não abriu nas Novidades.
+  const novidadeNova = usuario.ultima_versao_vista !== APP_VERSION;
   const rc = avatarAberto ? avatarRef.current?.getBoundingClientRect() : undefined;
 
   return (
@@ -122,12 +125,13 @@ export function Casca() {
         </nav>
         <div className="side-foot">
           <div className="esq">
-            <button className="ver" onClick={() => void abrirNovidades()} title="Ver as novidades desta versão">
+            <button className="ver" onClick={() => void abrirNovidades()} title={novidadeNova ? 'Há novidades que você ainda não viu' : 'Ver as novidades desta versão'}>
               {APP_VERSION}
+              {novidadeNova && <i className="ver-novo" aria-label="novidade" />}
             </button>
             {veOnline && <Online estado={online} euId={usuario.id} />}
           </div>
-          {tem('configuracoes.visualizar') && (
+          {veEngrenagem(tem) && (
             <button
               className="gear"
               onClick={() => ir('configuracoes')}
@@ -172,6 +176,8 @@ export function Casca() {
             <Agenda />
           ) : pagina === 'pessoas' ? (
             <Pessoas />
+          ) : pagina === 'lista' ? (
+            <Relatorio />
           ) : (
             <div className="empty-stage">
               <span className="tag">{atual.etapa}</span>

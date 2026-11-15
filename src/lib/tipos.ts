@@ -70,6 +70,8 @@ export interface Pessoa {
   telefone: string | null;
   email: string | null;
   documento: string | null;
+  /** Inativa não entra em reserva nova; as antigas e o histórico continuam (v1.0.0). */
+  ativo: boolean;
 }
 
 export type StatusCompromisso = 'cadastrado' | 'pre_reserva' | 'reservado' | 'cancelado';

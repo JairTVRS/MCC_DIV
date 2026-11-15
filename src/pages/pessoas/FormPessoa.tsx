@@ -1,12 +1,13 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useSessao } from '../../auth/Sessao';
 import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
 import { supabase } from '../../lib/supabase';
 import type { Pessoa, TipoPessoa } from '../../lib/tipos';
 import { ehLocador, ehLocatario, mascaraTelefone } from '../agenda/formatos';
+import { JanelaHistorico } from '../historico/JanelaHistorico';
 
-const COLUNAS = 'id, nome, tipo, telefone, email, documento';
+const COLUNAS = 'id, nome, tipo, telefone, email, documento, ativo';
 
 interface Props {
   pessoa?: Pessoa | null; // sem pessoa = cadastro novo
@@ -14,11 +15,13 @@ interface Props {
   tipoInicial?: 'locatario' | 'locador';
   onFechar: () => void;
   onSalvo: (p: Pessoa) => void;
-  onExcluido?: () => void;
 }
 
-/** Cadastro de pessoa (locatário, locador ou os dois). Abre da tela Pessoas e de dentro da reserva. */
-export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo, onExcluido }: Props) {
+/**
+ * Cadastro de pessoa (locatário, locador ou os dois). Abre da tela Pessoas e de dentro da reserva.
+ * Pessoa não é excluída: é inativada (Pessoas > Inativar e reativar), e o histórico continua.
+ */
+export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo }: Props) {
   const { tem } = useSessao();
   const nova = !pessoa;
   const editavel = nova ? tem('pessoas.incluir') : tem('pessoas.alterar');
@@ -28,11 +31,14 @@ export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? '');
   const [email, setEmail] = useState(pessoa?.email ?? '');
   const [documento, setDocumento] = useState(pessoa?.documento ?? '');
-  const [confirmarExclusao, setConfirmarExclusao] = useState(false);
+  const [confirmarInativar, setConfirmarInativar] = useState(false);
+  const [historico, setHistorico] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const alvo = useMemo(() => (pessoa ? { tipo: 'pessoa' as const, id: pessoa.id } : null), [pessoa]);
 
   const tipo: TipoPessoa | null = locatario && locador ? 'ambos' : locatario ? 'locatario' : locador ? 'locador' : null;
+  const inativa = pessoa?.ativo === false;
 
   async function salvar(e: FormEvent) {
     e.preventDefault();
@@ -49,17 +55,15 @@ export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo
     onSalvo(r.data as Pessoa);
   }
 
-  async function excluir() {
+  async function mudarAtivo(ativo: boolean) {
     if (!pessoa) return;
     setOcupado(true);
     setErro(null);
-    const { error } = await supabase.rpc('excluir_registro', { p_tabela: 'pessoas', p_id: pessoa.id });
+    const { data, error } = await supabase.from('pessoas').update({ ativo }).eq('id', pessoa.id).select(COLUNAS).single();
     setOcupado(false);
-    if (error) {
-      setConfirmarExclusao(false);
-      return setErro(mensagemErro(error));
-    }
-    onExcluido?.();
+    setConfirmarInativar(false);
+    if (error) return setErro(mensagemErro(error));
+    onSalvo(data as Pessoa);
   }
 
   return (
@@ -68,11 +72,18 @@ export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo
       <form className="modal estreito alto" role="dialog" aria-modal="true" aria-label={nova ? 'Nova pessoa' : 'Pessoa'} onSubmit={salvar}>
         <div className="m-head">
           <h2>{nova ? 'Nova pessoa' : 'Pessoa'}</h2>
+          {inativa && <span className="tag">Inativa</span>}
+          {alvo && tem('logs.pessoa') && (
+            <button type="button" className="ib" onClick={() => setHistorico(true)} aria-label="Histórico da pessoa" title="Histórico da pessoa">
+              <Icone nome="relogio" />
+            </button>
+          )}
           <button type="button" className="ib" onClick={onFechar} aria-label="Fechar" disabled={ocupado}>
             <Icone nome="x" />
           </button>
         </div>
         <div className="m-body">
+          {inativa && <p className="aviso">Pessoa inativa: não aparece para reservas novas. As reservas e o histórico dela continuam.</p>}
           <label className="campo">
             <span className="rot">Nome *</span>
             <input className="inp" value={nome} maxLength={120} autoFocus disabled={!editavel || ocupado} onChange={(e) => setNome(e.target.value)} />
@@ -112,20 +123,26 @@ export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo
           )}
         </div>
         <div className="m-foot">
-          {!nova && tem('pessoas.excluir') &&
-            (confirmarExclusao ? (
+          {!nova &&
+            tem('pessoas.inativar') &&
+            (inativa ? (
+              <button type="button" className="btn" onClick={() => void mudarAtivo(true)} disabled={ocupado}>
+                <Icone nome="restore" tamanho={16} />
+                Reativar
+              </button>
+            ) : confirmarInativar ? (
               <>
-                <button type="button" className="btn" onClick={() => setConfirmarExclusao(false)} disabled={ocupado}>
+                <button type="button" className="btn" onClick={() => setConfirmarInativar(false)} disabled={ocupado}>
                   Voltar
                 </button>
-                <button type="button" className="btn perigo" onClick={() => void excluir()} disabled={ocupado}>
-                  Confirmar exclusão
+                <button type="button" className="btn perigo" onClick={() => void mudarAtivo(false)} disabled={ocupado}>
+                  Confirmar inativação
                 </button>
               </>
             ) : (
-              <button type="button" className="btn" onClick={() => setConfirmarExclusao(true)} disabled={ocupado} title="Vai para a lixeira">
-                <Icone nome="trash" tamanho={16} />
-                Excluir
+              <button type="button" className="btn" onClick={() => setConfirmarInativar(true)} disabled={ocupado} title="Some das reservas novas; o histórico continua">
+                <Icone nome="out" tamanho={16} />
+                Inativar
               </button>
             ))}
           <span className="sp" />
@@ -139,6 +156,7 @@ export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo
           )}
         </div>
       </form>
+      {historico && alvo && <JanelaHistorico alvo={alvo} nome={pessoa?.nome} onFechar={() => setHistorico(false)} />}
     </>
   );
 }
