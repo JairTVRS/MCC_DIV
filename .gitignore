@@ -6,3 +6,6 @@ dist
 *.log
 *.tsbuildinfo
 .claude/settings.local.json
+
+# Arquivos do Jair (logos originais etc.): ficam só no computador, fora do repositório público
+Docs/
