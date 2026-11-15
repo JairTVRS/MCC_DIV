@@ -352,6 +352,60 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 .mes { display: flex; flex-direction: column; gap: 8px; }
 .mes-titulo { margin: 6px 0 0; font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--accent-strong); }
 
+/* Agenda: barra, visões e calendário (FullCalendar com a identidade do app) */
+.pagina.agenda { max-width: none; display: flex; flex-direction: column; gap: 12px; }
+.pagina.agenda.com-calendario { height: 100%; }
+.agenda-barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.agenda-nav { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.agenda-titulo { margin: 0 0 0 8px; font-family: var(--serif); font-size: 24px; font-weight: 600; line-height: 1.1; text-transform: capitalize; }
+.segmentos { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.segmentos button { border: 0; background: none; padding: 7px 14px; font-weight: 500; color: var(--muted); }
+.segmentos button + button { border-left: 1px solid var(--line); }
+.segmentos button:hover { color: var(--fg); background: var(--hover); }
+.segmentos button[aria-pressed='true'] { background: var(--btn); color: var(--btn-fg); }
+.calendario { flex: 1; min-height: 520px; background: var(--surface); border: 1px solid var(--line2); border-radius: 12px; padding: 8px; overflow: hidden; }
+
+.calendario .fc {
+  --fc-border-color: var(--line2);
+  --fc-page-bg-color: var(--surface);
+  --fc-neutral-bg-color: var(--surface2);
+  --fc-today-bg-color: color-mix(in srgb, var(--accent) 9%, transparent);
+  --fc-now-indicator-color: var(--danger);
+  --fc-event-selected-overlay-color: rgba(0, 0, 0, 0.08);
+  font-family: var(--sans);
+  font-size: 13px;
+  height: 100%;
+}
+.calendario .fc .fc-col-header-cell-cushion { color: var(--fg); font-weight: 600; text-transform: capitalize; padding: 8px 4px; text-decoration: none; }
+.calendario .fc .fc-day-today .fc-col-header-cell-cushion { color: var(--accent-strong); }
+.calendario .fc .fc-timegrid-slot { height: 2.6em; }
+/* Sem eixo de horas na lateral (plano v1.8): o horário vai escrito no card. */
+.calendario .fc .fc-timegrid-slot-label-cushion, .calendario .fc .fc-timegrid-axis-cushion { padding: 0; }
+.calendario .fc .fc-timegrid-slot-label { border: 0; }
+.calendario .fc .fc-timegrid-col.fc-day-today { background: var(--fc-today-bg-color); }
+.calendario .fc-v-event { border-width: 1px 1px 1px 4px; border-radius: 6px; box-shadow: none; cursor: pointer; }
+.calendario .fc-v-event .fc-event-main { padding: 4px 6px; }
+.calendario .fc-event.ev-cadastrado { --fc-event-bg-color: var(--st-cad-bg); --fc-event-border-color: var(--st-cad-bd); --fc-event-text-color: var(--st-cad-fg); border-style: dashed; }
+.calendario .fc-event.ev-pre_reserva { --fc-event-bg-color: var(--st-pre-bg); --fc-event-border-color: var(--st-pre-bd); --fc-event-text-color: var(--st-pre-fg); }
+.calendario .fc-event.ev-reservado { --fc-event-bg-color: var(--st-res-bg); --fc-event-border-color: var(--st-res-bd); --fc-event-text-color: var(--st-res-fg); }
+.calendario .fc-event.ev-cancelado { --fc-event-bg-color: var(--st-can-bg); --fc-event-border-color: var(--st-can-bd); --fc-event-text-color: var(--st-can-fg); opacity: 0.8; }
+.calendario .fc-event.ev-cancelado .ev-nome { text-decoration: line-through; }
+.ev { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; height: 100%; }
+.ev-hora { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; opacity: 0.9; }
+.ev-nome { font-size: 13px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; }
+.ev-status { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; opacity: 0.85; }
+.ev-status .selo { font-size: 9.5px; padding: 0 5px; }
+.calendario .fc-event-dragging, .calendario .fc-event-mirror { opacity: 0.85; box-shadow: var(--shadow); }
+.mudanca-pergunta { margin: 0; }
+.mudanca-de-para { margin: 0; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--line2); border-radius: 10px; background: var(--bg); }
+.toast { position: fixed; z-index: 55; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; background: var(--side); color: var(--side-fg); box-shadow: var(--shadow); font-size: 13px; }
+
+@media (max-width: 760px) {
+  .agenda-titulo { font-size: 19px; }
+  .calendario { min-height: 460px; padding: 4px; }
+  .calendario .fc { font-size: 12px; }
+}
+
 /* Aviso de atualização do app (canto inferior direito) */
 .atualizando { position: fixed; z-index: 60; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 10px; background: var(--side); color: var(--side-fg); box-shadow: var(--shadow); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .atualizando .gira { display: flex; color: var(--side-active); animation: girar 1.4s linear infinite; }

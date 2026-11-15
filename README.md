@@ -11,6 +11,7 @@ Web app para gerenciar as locações da casa de eventos: agenda contínua, reser
 
 | Versão | Data | Descrição |
 |---|---|---|
+| v0.5.0 | 15/11/2026 | Etapa 5: visões Semana e Dia (FullCalendar, sem eixo de horas; horário no card), arrastar e esticar em passos de 15 min com confirmação e conferência de conflito; clique em espaço vazio cria reserva no dia |
 | v0.4.1 | 15/11/2026 | Logo sem fundo e ícone da aba publicados com o app (`public/marca/`); configurações aceitam também imagens em `/marca/...` |
 | v0.4.0 | 15/11/2026 | Etapa 4: cadastro de pessoas (locatário, locador ou os dois) e da reserva (responsável, horário padrão 00:00–23:59, status, valor, resumo pago/total), aviso de conflito antes de salvar, agenda provisória em lista. Atualização do app: aviso "Atualizando app em 5…" no canto e recarga automática quando sai versão nova; Novidades só ao clicar na versão |
 | v0.3.0 | 15/11/2026 | Etapa 3: lista de espera com aprovação por grupo, usuários (busca, filtros, ativar/inativar, nome e grupo), grupos de usuários e árvore de permissões por módulo e função |
@@ -129,7 +130,7 @@ npm run test:db              # roda todas as migrações num Postgres em memóri
 2. ✅ Configurações (nome, logo, formas de pagamento, lixeira), avatar com upload, usuários online, política de privacidade
 3. ✅ Acesso: lista de espera com aprovação por grupo, status do usuário, grupos de usuários e árvore de permissões
 4. ✅ Cadastro de pessoas e da reserva (agenda provisória em lista)
-5. Visões semanal e diária com arrastar e redimensionar
+5. ✅ Visões semanal e diária com arrastar e redimensionar
 6. Visão mensal e lista para celular
 7. Pagamento: condições, rateio e devolução
 8. Anexos, comentários com menções e sino de notificações

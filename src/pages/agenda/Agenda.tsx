@@ -1,26 +1,64 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import type FullCalendar from '@fullcalendar/react';
 import { useSessao } from '../../auth/Sessao';
 import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
 import { supabase } from '../../lib/supabase';
 import type { Pessoa, Reserva } from '../../lib/tipos';
+import type { Mudanca, VisaoCalendario } from './Calendario';
+import { ConfirmarMudanca } from './ConfirmarMudanca';
 import { COLUNAS_RESERVA, FormReserva, type UsuarioCurto } from './FormReserva';
-import { COMPROMISSO, PAGAMENTO, reais } from './formatos';
+import { ListaReservas } from './ListaReservas';
+import { dataLocal } from './formatos';
 
-type Filtro = 'proximas' | 'anteriores' | 'todas';
+type Visao = 'semana' | 'dia' | 'lista';
+const VISOES: { id: Visao; titulo: string }[] = [
+  { id: 'semana', titulo: 'Semana' },
+  { id: 'dia', titulo: 'Dia' },
+  { id: 'lista', titulo: 'Lista' },
+];
+const CELULAR = '(max-width: 760px)';
+// Se uma versão nova foi publicada com o app aberto, o arquivo antigo do calendário some do servidor:
+// em vez de erro, recarrega a página (que já busca a versão nova).
+const Calendario = lazy(() =>
+  import('./Calendario').catch(() => {
+    window.location.reload();
+    return new Promise<never>(() => {});
+  }),
+);
 
-/**
- * Agenda provisória (etapa 4): lista das reservas por mês, com a cor do status.
- * As visões de semana, dia e mês com arrastar e soltar chegam nas etapas 5 e 6.
- */
+function visaoLembrada(): Visao {
+  try {
+    const v = localStorage.getItem('agenda-visao');
+    if (v === 'semana' || v === 'dia' || v === 'lista') return v;
+  } catch {
+    /* armazenamento indisponível */
+  }
+  return window.matchMedia(CELULAR).matches ? 'lista' : 'semana';
+}
+
+/** Agenda: visões Semana e Dia (arrastar e esticar no computador/tablet) e Lista. A visão de mês chega na etapa 6. */
 export function Agenda() {
   const { tem } = useSessao();
   const [reservas, setReservas] = useState<Reserva[] | null>(null);
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioCurto[]>([]);
-  const [filtro, setFiltro] = useState<Filtro>('proximas');
-  const [aberta, setAberta] = useState<Reserva | 'nova' | null>(null);
+  const [visao, setVisao] = useState<Visao>(visaoLembrada);
+  const [titulo, setTitulo] = useState('');
+  const [dataAtual, setDataAtual] = useState<Date>(() => new Date());
+  const [celular, setCelular] = useState(() => window.matchMedia(CELULAR).matches);
+  const [aberta, setAberta] = useState<{ reserva: Reserva | null; dia?: string } | null>(null);
+  const [mudanca, setMudanca] = useState<Mudanca | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const cal = useRef<FullCalendar>(null);
+
+  useEffect(() => {
+    const m = window.matchMedia(CELULAR);
+    const f = () => setCelular(m.matches);
+    m.addEventListener('change', f);
+    return () => m.removeEventListener('change', f);
+  }, []);
 
   const carregar = useCallback(async () => {
     try {
@@ -53,107 +91,136 @@ export function Agenda() {
     void carregar();
   }, [carregar]);
 
-  if (!reservas) return <p className="note">Carregando…</p>;
+  // O aviso "Reserva movida" some sozinho.
+  useEffect(() => {
+    if (!aviso) return;
+    const t = window.setTimeout(() => setAviso(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [aviso]);
 
-  const agora = new Date().toISOString();
-  const visiveis = reservas
-    .filter((r) => (filtro === 'todas' ? true : filtro === 'proximas' ? r.fim >= agora : r.fim < agora))
-    .sort((a, b) => (filtro === 'anteriores' ? b.inicio.localeCompare(a.inicio) : a.inicio.localeCompare(b.inicio)));
-  const meses = new Map<string, Reserva[]>();
-  for (const r of visiveis) {
-    const mes = new Date(r.inicio).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-    const chave = mes.charAt(0).toUpperCase() + mes.slice(1); // "Novembro de 2026"
-    meses.set(chave, [...(meses.get(chave) ?? []), r]);
-  }
-  const nomePessoa = (id: string) => pessoas.find((p) => p.id === id)?.nome ?? '(pessoa excluída)';
+  const nomePessoa = useCallback((id: string) => pessoas.find((p) => p.id === id)?.nome ?? '(pessoa excluída)', [pessoas]);
   const nomeUsuario = (id: string) => usuarios.find((u) => u.id === id)?.nome ?? '—';
+
+  function trocarVisao(v: Visao) {
+    setVisao(v);
+    try {
+      localStorage.setItem('agenda-visao', v);
+    } catch {
+      /* armazenamento indisponível */
+    }
+    if (v !== 'lista') cal.current?.getApi().changeView(v === 'semana' ? 'timeGridWeek' : 'timeGridDay');
+  }
+
+  // "Nova reserva" pelo botão: o dia mostrado (visão Dia), hoje se estiver na semana mostrada, senão o domingo da semana.
+  function diaParaNova(): string | undefined {
+    if (visao === 'lista') return undefined;
+    if (visao === 'dia') return dataLocal(dataAtual.toISOString());
+    const hoje = new Date();
+    const fimSemana = new Date(dataAtual.getTime() + 7 * 86400000);
+    return dataLocal((hoje >= dataAtual && hoje < fimSemana ? hoje : dataAtual).toISOString());
+  }
+
+  if (!reservas) return <p className="note">Carregando…</p>;
   const vePagamento = tem('pagamentos.visualizar');
+  const podeIncluir = tem('reservas.incluir');
+  const calendario = visao !== 'lista';
+  const visaoCal: VisaoCalendario = visao === 'dia' ? 'timeGridDay' : 'timeGridWeek';
 
   return (
-    <div className="pagina">
-      <section className="secao">
-        <div className="secao-cab">
-          <h3>Reservas</h3>
-          {tem('reservas.incluir') && (
-            <button className="btn pri" onClick={() => setAberta('nova')}>
-              <Icone nome="plus" tamanho={16} />
-              Nova reserva
+    <div className={`pagina agenda${calendario ? ' com-calendario' : ''}`}>
+      <div className="agenda-barra">
+        {calendario && (
+          <div className="agenda-nav">
+            <button className="btn peq" onClick={() => cal.current?.getApi().today()}>
+              Hoje
             </button>
-          )}
-        </div>
-        <p className="note">Lista provisória: as visões de mês, semana e dia, com arrastar e soltar, chegam nas próximas etapas.</p>
-        <div className="chips" role="group" aria-label="Período">
-          {(
-            [
-              ['proximas', 'Próximas'],
-              ['anteriores', 'Anteriores'],
-              ['todas', 'Todas'],
-            ] as [Filtro, string][]
-          ).map(([f, rot]) => (
-            <button key={f} className="chip" aria-pressed={filtro === f} onClick={() => setFiltro(f)}>
-              {rot}
+            <button className="ib" onClick={() => cal.current?.getApi().prev()} aria-label={visao === 'dia' ? 'Dia anterior' : 'Semana anterior'}>
+              <Icone nome="esq" />
+            </button>
+            <button className="ib" onClick={() => cal.current?.getApi().next()} aria-label={visao === 'dia' ? 'Próximo dia' : 'Próxima semana'}>
+              <Icone nome="dir" />
+            </button>
+            <h3 className="agenda-titulo">{titulo}</h3>
+          </div>
+        )}
+        <span className="sp" />
+        <div className="segmentos" role="group" aria-label="Visão da agenda">
+          {VISOES.map((v) => (
+            <button key={v.id} aria-pressed={visao === v.id} onClick={() => trocarVisao(v.id)}>
+              {v.titulo}
             </button>
           ))}
         </div>
-        {erro && (
-          <p className="msg-erro" role="alert">
-            {erro}
-          </p>
+        {podeIncluir && (
+          <button className="btn pri" onClick={() => setAberta({ reserva: null, dia: diaParaNova() })}>
+            <Icone nome="plus" tamanho={16} />
+            Nova reserva
+          </button>
         )}
+      </div>
+      {erro && (
+        <p className="msg-erro" role="alert">
+          {erro}
+        </p>
+      )}
 
-        {visiveis.length === 0 ? (
-          <p className="vazio">{filtro === 'proximas' ? 'Nenhuma reserva pela frente.' : 'Nenhuma reserva aqui.'}</p>
-        ) : (
-          [...meses.entries()].map(([mes, lista]) => (
-            <div key={mes} className="mes">
-              <h4 className="mes-titulo">{mes}</h4>
-              <ul className="reservas">
-                {lista.map((r) => {
-                  const ini = new Date(r.inicio);
-                  const fim = new Date(r.fim);
-                  const hora = (d: Date) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                  const outroDia = ini.toDateString() !== fim.toDateString();
-                  return (
-                    <li key={r.id}>
-                      <button className={`reserva st-${r.status_compromisso}`} onClick={() => setAberta(r)}>
-                        <span className="reserva-dia">
-                          <strong>{ini.getDate()}</strong>
-                          <span>{ini.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</span>
-                        </span>
-                        <span className="reserva-tx">
-                          <strong className="reserva-nome">{nomePessoa(r.locatario_id)}</strong>
-                          <span>
-                            {hora(ini)} às {outroDia ? `${fim.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ` : ''}
-                            {hora(fim)} · Locador: {nomePessoa(r.locador_id)} · Resp.: {nomeUsuario(r.responsavel_id)}
-                          </span>
-                        </span>
-                        <span className="reserva-lado">
-                          <span className={`status-chip st-${r.status_compromisso}`}>{COMPROMISSO[r.status_compromisso].rotulo}</span>
-                          {vePagamento && (
-                            <span className="reserva-valor">
-                              {reais(r.valor_total)} <span className={`selo pg-${r.status_pagamento}`}>{PAGAMENTO[r.status_pagamento]}</span>
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))
-        )}
-      </section>
+      {calendario ? (
+        <div className="calendario">
+          <Suspense fallback={<p className="note">Carregando calendário…</p>}>
+          <Calendario
+            ref={cal}
+            reservas={reservas}
+            visao={visaoCal}
+            dataInicial={dataAtual}
+            editavel={tem('reservas.alterar') && !celular}
+            vePagamento={vePagamento}
+            nomePessoa={nomePessoa}
+            onPeriodo={(t, inicio) => {
+              setTitulo(t);
+              setDataAtual(inicio);
+            }}
+            onAbrir={(r) => setAberta({ reserva: r })}
+            onDiaVazio={(dia) => podeIncluir && setAberta({ reserva: null, dia: dataLocal(dia.toISOString()) })}
+            onMudanca={setMudanca}
+          />
+          </Suspense>
+        </div>
+      ) : (
+        <section className="secao">
+          <ListaReservas reservas={reservas} nomePessoa={nomePessoa} nomeUsuario={nomeUsuario} vePagamento={vePagamento} onAbrir={(r) => setAberta({ reserva: r })} />
+        </section>
+      )}
+      {calendario && celular && <p className="note">No celular, toque na reserva para abrir. Arrastar e esticar funcionam no computador e no tablet.</p>}
 
       {aberta && (
         <FormReserva
-          reserva={aberta === 'nova' ? null : aberta}
+          reserva={aberta.reserva}
+          diaInicial={aberta.dia}
           pessoas={pessoas}
           usuarios={usuarios}
           onPessoaNova={(p) => setPessoas((ps) => [...ps, p].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')))}
           onFechar={() => setAberta(null)}
           onMudou={() => void carregar()}
         />
+      )}
+      {mudanca && (
+        <ConfirmarMudanca
+          mudanca={mudanca}
+          nomeLocatario={nomePessoa(mudanca.reserva.locatario_id)}
+          onConcluir={(gravou) => {
+            setMudanca(null);
+            if (gravou) {
+              setAviso(mudanca.tipo === 'mover' ? 'Reserva movida.' : 'Horário alterado.');
+              void carregar();
+            }
+          }}
+        />
+      )}
+      {aviso && (
+        <div className="toast" role="status">
+          <Icone nome="check" tamanho={16} />
+          {aviso}
+        </div>
       )}
     </div>
   );

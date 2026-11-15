@@ -50,18 +50,18 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 
 ## Situação atual
 
-- **v0.4.0** — Etapa 4 concluída: tela Pessoas (busca, filtro, cadastro com tipo locatário/locador/ambos) e formulário da reserva (abas Dados/Pagamento/Anexos/Comentários — só Dados funciona; seletor de pessoa com busca e cadastro rápido; responsável; 00:00–23:59; status com permissões; valor; resumo pago/total/%; aviso de conflito; excluir). Agenda provisória em lista por mês (Próximas/Anteriores/Todas) até as etapas 5–6.
+- **v0.5.0** — Etapa 5 concluída: Agenda com visões Semana/Dia/Lista (`src/pages/agenda/Calendario.tsx`, FullCalendar 6.1.15 MIT — core, react, timegrid, interaction — carregado sob demanda). Grade 00:00–24:00 sem eixo de horas (horário escrito no card), rola até 08:00, domingo a sábado. Arrastar muda dia/horário e esticar muda o fim, em passos de **15 min**; ao soltar, **sempre pergunta** antes de gravar (decisão do Jair) e confere `conflito_reserva`; pré-reserva/reservado não se sobrepõem nem visualmente. No celular não arrasta (toque abre o formulário). Clique em espaço vazio = nova reserva no dia.
+- v0.4.0 — Etapa 4: tela Pessoas (busca, filtro, cadastro com tipo locatário/locador/ambos) e formulário da reserva (abas Dados/Pagamento/Anexos/Comentários — só Dados funciona; seletor de pessoa com busca e cadastro rápido; responsável; 00:00–23:59; status com permissões; valor; resumo pago/total/%; aviso de conflito; excluir). Lista por mês (Próximas/Anteriores/Todas), hoje a visão "Lista" da agenda.
 - v0.3.0 — Etapa 3: Usuários e Grupos (lista de espera, usuários, grupos com árvore de permissões). v0.2.x — Etapa 2: Configurações, Meu perfil/Trocar foto, contador online, `/privacidade`.
 - Tela Lista / Relatório ainda é "em construção" (etapa 10).
-- Migrações 001 a 009 aplicadas no Supabase; v0.4.1 publicada no Cloudflare (15/11/2026). Testado no localhost: cadastro rápido de pessoa e pré-reserva na lista.
-- **Onde paramos (15/11/2026):** etapa 4 no ar, logo sem fundo e ícone da aba aplicados. Google OAuth **em produção** (Branding com página inicial, `/privacidade` e domínios `mcc-div.pages.dev` + `rcxijihpzlsozfyxnkhy.supabase.co`; sem logotipo, para não exigir verificação). Próximo passo: escopo da etapa 5 para aprovação.
+- Migrações 001 a 009 aplicadas no Supabase; v0.4.1 publicada no Cloudflare (15/11/2026). Google OAuth **em produção** (Branding com página inicial, `/privacidade` e domínios `mcc-div.pages.dev` + `rcxijihpzlsozfyxnkhy.supabase.co`; sem logotipo, para não exigir verificação).
+- **Onde paramos (15/11/2026):** v0.5.0 pronta no `main` local (não publicada), aguardando o Jair testar no localhost e rodar a migração 010 (só novidades). Próximo passo depois: escopo da etapa 6.
 - Servidor local: o Claude sobe e mantém o `npm run dev` na porta 5173 (a 5174 quebra o login Google).
 - Push: funciona daqui com `GCM_INTERACTIVE=never` (o repositório fixa a conta `JairTVRS` na config local).
 
 ## Próximas etapas (plano v1.8, com os ajustes do Jair)
 
-5. **(próxima)** Visões semanal e diária (sem eixo de horas na lateral) com arrastar e redimensionar.
-6. Visão mensal (arrastar entre dias) e lista por dia no celular.
+6. **(próxima)** Visão mensal (arrastar entre dias) e lista por dia no celular.
 7. Pagamento: condições, rateio de parcelas, devolução no cancelamento.
 8. Anexos, comentários com menções @ e sino de notificações (Realtime).
 9. Relógios de log (reserva, usuário, geral) e lixeira.
