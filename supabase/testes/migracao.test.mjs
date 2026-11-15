@@ -168,7 +168,11 @@ ok(!!await erro(()=>as(A,`update configuracoes set logo_claro='http://outro.site
 await as(A,`update configuracoes set logo_claro='https://p.supabase.co/storage/v1/object/public/marca/logo.png' where id=1`);
 ok((await su(`select logo_claro from configuracoes`))[0].logo_claro.endsWith('/marca/logo.png'),'logo do bucket "marca" é aceito');
 ok((await su(`select * from log_eventos where tabela='configuracoes' and campo='nome_app'`)).length===1,'alteração das configurações entra no log');
-ok((await su(`select favicon_proprio from configuracoes`))[0].favicon_proprio===false,'ícone da aba começa como gerado pelo logo (v0.2.2)');
+ok((await su(`select favicon, favicon_proprio from configuracoes`)).every(c=>c.favicon==='/marca/icone.png'&&c.favicon_proprio===true),'ícone da aba publicado com o app (v0.4.1)');
+await as(A,`update configuracoes set logo_escuro='/marca/logo-escuro.png' where id=1`);
+ok((await su(`select logo_escuro from configuracoes`))[0].logo_escuro==='/marca/logo-escuro.png','logo publicado com o app (/marca/...) é aceito');
+ok(!!await erro(()=>as(A,`update configuracoes set logo_escuro='//outro.site/marca/x.png' where id=1`)),'endereço externo disfarçado de /marca/ é recusado');
+ok(!!await erro(()=>as(A,`update configuracoes set logo_escuro='/marca/../segredo.png' where id=1`)),'caminho com ../ é recusado');
 await as(A,`update configuracoes set favicon='https://p.supabase.co/storage/v1/object/public/marca/icone-x.png', favicon_proprio=true where id=1`);
 ok((await su(`select favicon_proprio from configuracoes`))[0].favicon_proprio===true,'administrador envia ícone da aba próprio');
 ok(!!await erro(()=>as(A,`update configuracoes set favicon='http://outro.site/i.png' where id=1`)),'ícone fora do bucket "marca" é recusado');
