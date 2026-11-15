@@ -11,7 +11,7 @@ Web app para gerenciar as locações da casa de eventos: agenda contínua, reser
 
 | Versão | Data | Descrição |
 |---|---|---|
-| v0.7.0 | 15/11/2026 | Etapa 7: prazos de pagamento (Configurações), plano de parcelas pelo prazo a partir da pré-reserva (editável), registrar pagamento com comprovante, Reservado automático no 1º pagamento e volta para Cadastrado sem nada pago, devolução no cancelamento, desconto com motivo |
+| v0.7.0 | 15/11/2026 | Etapa 7: prazos de pagamento (nome gerado das parcelas), plano sempre pelo prazo (quantidade do prazo, última parcela fecha o total), registrar pagamento com comprovante e prévia, Reservado automático no 1º pagamento ou com desconto total e volta para Cadastrado sem nada pago, devolução no cancelamento, desconto com motivo. Histórico da reserva (relógio). Agenda com cor por status e filtro de status |
 | v0.6.0 | 15/11/2026 | Etapas 5 e 6: agenda em calendário (FullCalendar) com visões Mês (padrão), Semana, Dia e Lista; mês arrasta entre dias mantendo o horário; semana/dia sem eixo de horas, arrastar e esticar em passos de 15 min; confirmação e conferência de conflito antes de gravar; celular com dia por dia e mês |
 | v0.4.1 | 15/11/2026 | Logo sem fundo e ícone da aba publicados com o app (`public/marca/`); configurações aceitam também imagens em `/marca/...` |
 | v0.4.0 | 15/11/2026 | Etapa 4: cadastro de pessoas (locatário, locador ou os dois) e da reserva (responsável, horário padrão 00:00–23:59, status, valor, resumo pago/total), aviso de conflito antes de salvar, agenda provisória em lista. Atualização do app: aviso "Atualizando app em 5…" no canto e recarga automática quando sai versão nova; Novidades só ao clicar na versão |
