@@ -54,8 +54,8 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - v0.4.0 — Etapa 4: tela Pessoas (busca, filtro, cadastro com tipo locatário/locador/ambos) e formulário da reserva (abas Dados/Pagamento/Anexos/Comentários — só Dados funciona; seletor de pessoa com busca e cadastro rápido; responsável; 00:00–23:59; status com permissões; valor; resumo pago/total/%; aviso de conflito; excluir). Lista por mês (Próximas/Anteriores/Todas), hoje a visão "Lista" da agenda.
 - v0.3.0 — Etapa 3: Usuários e Grupos (lista de espera, usuários, grupos com árvore de permissões). v0.2.x — Etapa 2: Configurações, Meu perfil/Trocar foto, contador online, `/privacidade`.
 - Tela Lista / Relatório ainda é "em construção" (etapa 10).
-- Migrações 001 a 009 aplicadas no Supabase; v0.4.1 publicada no Cloudflare (15/11/2026). Google OAuth **em produção** (Branding com página inicial, `/privacidade` e domínios `mcc-div.pages.dev` + `rcxijihpzlsozfyxnkhy.supabase.co`; sem logotipo, para não exigir verificação).
-- **Onde paramos (15/11/2026):** v0.6.0 pronta no `main` local (não publicada), aguardando o Jair testar no localhost e rodar a migração 010 (só novidades). Próximo passo depois: escopo da etapa 7 (pagamento).
+- Migrações 001 a 010 aplicadas no Supabase; v0.6.0 publicada no Cloudflare (15/11/2026). Testado no localhost: mês (faixa contínua, clique em dia vazio), semana (nome na continuação). Google OAuth **em produção** (Branding com página inicial, `/privacidade` e domínios `mcc-div.pages.dev` + `rcxijihpzlsozfyxnkhy.supabase.co`; sem logotipo, para não exigir verificação).
+- **Onde paramos (15/11/2026):** etapas 5 e 6 no ar (v0.6.0). Próximo passo: escopo da etapa 7 (pagamento) para aprovação.
 - Servidor local: o Claude sobe e mantém o `npm run dev` na porta 5173 (a 5174 quebra o login Google).
 - Push: funciona daqui com `GCM_INTERACTIVE=never` (o repositório fixa a conta `JairTVRS` na config local).
 
