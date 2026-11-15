@@ -622,3 +622,72 @@ textarea.inp { resize: vertical; min-height: 72px; }
   .content { padding: 16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); }
 }
 @media (prefers-reduced-motion: reduce) { .side { transition: none; } }
+
+/* Etapa 8: anexos, comentários, contadores e sino */
+.anexos, .comentarios { display: flex; flex-direction: column; gap: 14px; }
+.soltar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 16px; border: 1.5px dashed var(--line); border-radius: 12px; background: var(--bg); color: var(--muted); transition: background 0.15s, border-color 0.15s; }
+.soltar.ativo { border-color: var(--accent-strong); background: var(--hover); }
+.soltar-tx { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
+.soltar-tx strong { color: var(--fg); font-size: 14px; }
+.soltar-tx span { font-size: 12.5px; }
+.soltar-cat { min-width: 170px; margin: 0; }
+.lista-anexos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lista-anexos li { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--line2); border-radius: 10px; background: var(--surface); }
+.anexo-mini { width: 52px; height: 52px; flex: none; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: var(--bg); display: grid; place-items: center; padding: 0; cursor: pointer; color: var(--accent-strong); font-weight: 700; font-size: 12px; letter-spacing: 0.6px; }
+.anexo-mini img { width: 100%; height: 100%; object-fit: cover; }
+.anexo-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.anexo-nome { border: 0; background: none; padding: 0; text-align: left; font-weight: 600; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.anexo-nome:hover { color: var(--accent-strong); text-decoration: underline; }
+.anexo-tx > span { font-size: 12px; color: var(--muted); }
+.inp.anexo-cat { width: auto; max-width: 180px; padding-top: 5px; padding-bottom: 5px; font-size: 13px; }
+
+.lista-comentarios { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.lista-comentarios li { display: flex; gap: 10px; padding: 10px; border-radius: 10px; }
+.lista-comentarios li.destaque { background: var(--hover); box-shadow: inset 3px 0 0 var(--accent); }
+.com-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.com-topo { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.com-topo > span:not(.com-acoes) { font-size: 12px; color: var(--muted); }
+.com-acoes { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.com-acoes .ib { padding: 5px; }
+.com-texto { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.mencao { background: none; color: var(--accent-strong); font-weight: 600; }
+.com-editar { display: flex; flex-direction: column; gap: 8px; }
+.com-editar .acoes { justify-content: flex-end; }
+.com-novo { display: flex; gap: 10px; align-items: flex-end; border-top: 1px solid var(--line2); padding-top: 14px; }
+.com-novo .caixa-mencao { flex: 1; }
+.caixa-mencao { position: relative; }
+.caixa-mencao textarea { width: 100%; resize: vertical; min-height: 70px; }
+.sugestoes { position: absolute; z-index: 5; left: 0; bottom: calc(100% + 4px); list-style: none; margin: 0; padding: 4px; width: min(280px, 100%); background: var(--surface); border: 1px solid var(--line2); border-radius: 10px; box-shadow: var(--shadow); }
+.sugestoes button { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; padding: 6px 8px; border-radius: 6px; text-align: left; color: var(--fg); }
+.sugestoes li[aria-selected='true'] button, .sugestoes button:hover { background: var(--hover); }
+
+.contagens { display: inline-flex; align-items: center; gap: 6px; flex: none; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; opacity: 0.85; }
+.contagens > span { display: inline-flex; align-items: center; gap: 2px; }
+.ev-linha .contagens { margin-left: auto; padding-left: 4px; }
+.reserva-chips { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+
+.sino-qtd { position: absolute; top: 2px; right: 1px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 17px; text-align: center; box-shadow: 0 0 0 2px var(--surface); }
+.pop.sino-pop { width: min(380px, calc(100% - 24px)); }
+.sino-topo { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line2); padding-right: 10px; }
+.sino-topo h4 { flex: 1; border-bottom: 0; }
+.sino-topo .btn.peq { padding: 4px 8px; font-size: 12px; }
+.sino-pop .msg-erro, .sino-pop .note { padding: 10px 14px; }
+.sino-pop .vazio { margin: 12px; }
+.sino-lista { list-style: none; margin: 0; padding: 4px 0; max-height: min(440px, 70vh); overflow: auto; }
+.sino-item { display: flex; gap: 10px; align-items: flex-start; width: 100%; border: 0; background: none; padding: 10px 14px; text-align: left; color: var(--fg); }
+.sino-item:hover { background: var(--hover); }
+.sino-item.nova { background: var(--surface2); }
+.sino-item.nova:hover { background: var(--hover); }
+.sino-ic { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--bg); color: var(--accent-strong); border: 1px solid var(--line2); }
+.sino-item.tipo-atraso .sino-ic { color: var(--danger); }
+.sino-item.tipo-vencimento .sino-ic { color: var(--warn); }
+.sino-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sino-tx strong { font-size: 13px; }
+.sino-tx span { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.sino-tx em { font-size: 11.5px; font-style: normal; color: var(--muted); }
+.sino-item .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); flex: none; margin-top: 6px; }
+@media (max-width: 760px) {
+  .com-novo { flex-direction: column; align-items: stretch; }
+  .lista-anexos li { flex-wrap: wrap; }
+  .inp.anexo-cat { max-width: none; flex: 1; }
+}

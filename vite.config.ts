@@ -18,4 +18,7 @@ function versaoJson(): Plugin {
 export default defineConfig({
   plugins: [react(), versaoJson()],
   define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
+  // Docs/ guarda arquivos do Jair (logos etc.), não código: vigiar essa pasta derrubava o
+  // servidor local com EBUSY quando um arquivo dela estava aberto em outro programa.
+  server: { watch: { ignored: ['**/Docs/**', '**/supabase/**'] } },
 });

@@ -134,6 +134,48 @@ export interface Devolucao {
   registrado_em: string;
 }
 
+export interface CategoriaAnexo {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  ordem: number;
+  /** Usada pelo sistema (Comprovante): não pode ser renomeada nem desativada. */
+  sistema: boolean;
+}
+
+export interface Anexo {
+  id: string;
+  locacao_id: string;
+  parcela_id: string | null;
+  devolucao_id: string | null;
+  nome_arquivo: string;
+  caminho_storage: string;
+  categoria: string;
+  tamanho: number;
+  enviado_por: string | null;
+  enviado_em: string;
+}
+
+export interface Comentario {
+  id: string;
+  locacao_id: string;
+  texto: string;
+  autor_id: string;
+  criado_em: string;
+  editado_em: string | null;
+}
+
+export interface Notificacao {
+  id: string;
+  tipo: 'mencao' | 'pedido_acesso' | 'vencimento' | 'atraso';
+  lida: boolean;
+  criado_em: string;
+  locacao_id: string | null;
+  comentario_id: string | null;
+  titulo: string;
+  detalhe: string | null;
+}
+
 export interface FormaPagamento {
   id: string;
   nome: string;

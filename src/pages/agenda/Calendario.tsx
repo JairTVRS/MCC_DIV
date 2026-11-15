@@ -8,6 +8,7 @@ import ptBr from '@fullcalendar/core/locales/pt-br';
 import type { DatesSetArg, EventContentArg, EventDropArg, EventInput } from '@fullcalendar/core';
 import type { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction';
 import type { Reserva } from '../../lib/tipos';
+import { Contagens } from './Contagens';
 import { COMPROMISSO, PAGAMENTO } from './formatos';
 
 /** Mês, semana, dia (computador/tablet) e dia por dia (celular, plano v1.8 item 6). */
@@ -28,6 +29,8 @@ interface Props {
   dataInicial: Date;
   editavel: boolean;
   vePagamento: boolean;
+  /** Anexos e comentários por reserva (clipe e balão no card). */
+  contadores: Map<string, { anexos: number; comentarios: number }>;
   nomePessoa: (id: string) => string;
   onPeriodo: (titulo: string, inicio: Date, fim: Date) => void;
   onAbrir: (r: Reserva) => void;
@@ -48,7 +51,7 @@ const diaMes = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', mont
  * Pré-reserva e reservado não se sobrepõem.
  */
 export const Calendario = forwardRef<FullCalendar, Props>(function Calendario(props, ref) {
-  const { reservas, visao, dataInicial, editavel, vePagamento, nomePessoa, onPeriodo, onAbrir, onDiaVazio, onIrParaDia, onMudanca } = props;
+  const { reservas, visao, dataInicial, editavel, vePagamento, contadores, nomePessoa, onPeriodo, onAbrir, onDiaVazio, onIrParaDia, onMudanca } = props;
 
   const eventos = useMemo<EventInput[]>(
     () =>
@@ -70,6 +73,8 @@ export const Calendario = forwardRef<FullCalendar, Props>(function Calendario(pr
     const mesmoDia = ini.toDateString() === fim.toDateString();
     const status = COMPROMISSO[r.status_compromisso].rotulo;
     const selo = vePagamento && <span className={`selo pg-${r.status_pagamento}`}>{PAGAMENTO[r.status_pagamento]}</span>;
+    const qtd = contadores.get(r.id);
+    const contagens = <Contagens anexos={qtd?.anexos} comentarios={qtd?.comentarios} />;
 
     // Mês: uma linha (hora de início + locatário); o resto aparece ao passar o mouse.
     if (arg.view.type === 'dayGridMonth') {
@@ -77,6 +82,7 @@ export const Calendario = forwardRef<FullCalendar, Props>(function Calendario(pr
         <div className="ev ev-linha" title={`${arg.event.title} · ${mesmoDia ? `${hora(ini)}–${hora(fim)}` : `${diaMes(ini)} ${hora(ini)} – ${diaMes(fim)} ${hora(fim)}`} · ${status}`}>
           {arg.isStart && <span className="ev-hora">{hora(ini)}</span>}
           <strong className="ev-nome">{arg.event.title}</strong>
+          {arg.isEnd && contagens}
         </div>
       );
     }
@@ -88,6 +94,7 @@ export const Calendario = forwardRef<FullCalendar, Props>(function Calendario(pr
           <span className="ev-status">
             <span className={`status-chip st-${r.status_compromisso}`}>{status}</span>
             {selo}
+            {contagens}
           </span>
         </div>
       );
@@ -100,6 +107,7 @@ export const Calendario = forwardRef<FullCalendar, Props>(function Calendario(pr
         <span className="ev-status">
           {status}
           {selo}
+          {contagens}
         </span>
       </div>
     );

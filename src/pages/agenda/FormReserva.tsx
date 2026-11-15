@@ -5,6 +5,8 @@ import { Icone } from '../../lib/icones';
 import { supabase } from '../../lib/supabase';
 import type { FormaPagamento, Pessoa, Reserva, StatusCompromisso } from '../../lib/tipos';
 import { FormPessoa } from '../pessoas/FormPessoa';
+import { AbaAnexos } from './AbaAnexos';
+import { AbaComentarios } from './AbaComentarios';
 import { AbaPagamento, RegistrarDevolucao, valorFinal } from './AbaPagamento';
 import { Historico } from './Historico';
 import { SeletorPessoa } from './SeletorPessoa';
@@ -22,6 +24,7 @@ export const normalizarReserva = (x: unknown): Reserva => {
 export interface UsuarioCurto {
   id: string;
   nome: string;
+  foto: string | null;
   /** Pode ser responsável: ativo e o grupo vê a agenda. */
   responsavel: boolean;
 }
@@ -34,24 +37,32 @@ interface Props {
   onPessoaNova: (p: Pessoa) => void;
   onFechar: () => void;
   onMudou: () => void;
+  /** Aba em que o card abre (ex.: vindo do sino). */
+  abaInicial?: AbaReserva;
+  /** Comentário a destacar (menção vinda do sino). */
+  comentarioDestaque?: string | null;
 }
 
-type Aba = 'dados' | 'pagamento' | 'anexos' | 'comentarios';
-const ABAS: { id: Aba; titulo: string; etapa?: string }[] = [
+export type AbaReserva = 'dados' | 'pagamento' | 'anexos' | 'comentarios';
+type Aba = AbaReserva;
+const ABAS: { id: Aba; titulo: string; funcao?: string }[] = [
   { id: 'dados', titulo: 'Dados' },
-  { id: 'pagamento', titulo: 'Pagamento' },
-  { id: 'anexos', titulo: 'Anexos', etapa: 'Contrato, documentos e fotos chegam na etapa 8 (os comprovantes de pagamento já ficam na aba Pagamento).' },
-  { id: 'comentarios', titulo: 'Comentários', etapa: 'Comentários com menções @ chegam na etapa 8.' },
+  { id: 'pagamento', titulo: 'Pagamento', funcao: 'pagamentos.visualizar' },
+  { id: 'anexos', titulo: 'Anexos', funcao: 'anexos.visualizar' },
+  { id: 'comentarios', titulo: 'Comentários', funcao: 'comentarios.visualizar' },
 ];
 
 /** Formulário da reserva (card). Horário padrão 00:00–23:59 do dia; avisa conflito antes de salvar. */
-export function FormReserva({ reserva, diaInicial, pessoas, usuarios, onPessoaNova, onFechar, onMudou }: Props) {
+export function FormReserva({ reserva, diaInicial, pessoas, usuarios, onPessoaNova, onFechar, onMudou, abaInicial, comentarioDestaque }: Props) {
   const { usuario, tem } = useSessao();
   const [atual, setAtual] = useState<Reserva | null>(reserva);
   const nova = !atual;
   const editavel = nova ? tem('reservas.incluir') : tem('reservas.alterar');
   const dia = diaInicial ?? hojeLocal();
-  const [aba, setAba] = useState<Aba>('dados');
+  const [aba, setAba] = useState<Aba>(() => {
+    const a = ABAS.find((x) => x.id === abaInicial);
+    return reserva && a && (!a.funcao || tem(a.funcao)) ? a.id : 'dados';
+  });
   const [locatario, setLocatario] = useState<string | null>(reserva?.locatario_id ?? null);
   const [locador, setLocador] = useState<string | null>(reserva?.locador_id ?? null);
   const [responsavel, setResponsavel] = useState<string>(reserva?.responsavel_id ?? usuario?.id ?? '');
@@ -210,7 +221,7 @@ export function FormReserva({ reserva, diaInicial, pessoas, usuarios, onPessoaNo
           </button>
         </div>
         <div className="tabs tabs-modal" role="tablist">
-          {ABAS.filter((a) => a.id !== 'pagamento' || vePagamento).map((a) => (
+          {ABAS.filter((a) => !a.funcao || tem(a.funcao)).map((a) => (
             <button type="button" key={a.id} role="tab" aria-selected={aba === a.id} onClick={() => setAba(a.id)}>
               {a.titulo}
             </button>
@@ -224,7 +235,13 @@ export function FormReserva({ reserva, diaInicial, pessoas, usuarios, onPessoaNo
               <p className="vazio">Salve a reserva para montar o plano de pagamento.</p>
             )
           ) : !emDados ? (
-            <p className="vazio">{ABAS.find((a) => a.id === aba)?.etapa}</p>
+            !atual ? (
+              <p className="vazio">Salve a reserva para {aba === 'anexos' ? 'anexar arquivos' : 'comentar'}.</p>
+            ) : aba === 'anexos' ? (
+              <AbaAnexos reserva={atual} usuarios={usuarios} onMudou={onMudou} />
+            ) : (
+              <AbaComentarios reserva={atual} usuarios={usuarios} destaque={comentarioDestaque} onMudou={onMudou} />
+            )
           ) : (
             <>
               {vePagamento && (

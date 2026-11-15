@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabase';
 import type { Pessoa, Reserva, StatusCompromisso } from '../../lib/tipos';
 import type { Mudanca, VisaoCalendario } from './Calendario';
 import { ConfirmarMudanca } from './ConfirmarMudanca';
-import { COLUNAS_RESERVA, FormReserva, normalizarReserva, type UsuarioCurto } from './FormReserva';
+import { COLUNAS_RESERVA, FormReserva, normalizarReserva, type AbaReserva, type UsuarioCurto } from './FormReserva';
 import { ListaReservas } from './ListaReservas';
 import { COMPROMISSO, dataLocal } from './formatos';
 
@@ -93,6 +93,19 @@ const VISOES_CELULAR: { id: Visao; titulo: string }[] = [
 ];
 const CELULAR = '(max-width: 760px)';
 
+/** Quantos anexos e comentários cada reserva tem (ícones no card). */
+export type Contadores = Map<string, { anexos: number; comentarios: number }>;
+
+/** Pedido para abrir uma reserva vindo da URL (sino): "#agenda?r=<id>&aba=comentarios&c=<comentário>". */
+function pedidoDaUrl(): { id: string; aba?: AbaReserva; comentario?: string } | null {
+  const [pagina, busca] = window.location.hash.replace('#', '').split('?');
+  if (pagina !== 'agenda' || !busca) return null;
+  const q = new URLSearchParams(busca);
+  const id = q.get('r');
+  if (!id) return null;
+  return { id, aba: (q.get('aba') as AbaReserva) || undefined, comentario: q.get('c') || undefined };
+}
+
 // Se uma versão nova foi publicada com o app aberto, o arquivo antigo do calendário some do servidor:
 // em vez de erro, recarrega a página (que já busca a versão nova).
 const Calendario = lazy(() =>
@@ -124,7 +137,8 @@ export function Agenda() {
   const [visao, setVisao] = useState<Visao>(() => visaoLembrada(window.matchMedia(CELULAR).matches));
   const [titulo, setTitulo] = useState('');
   const [periodo, setPeriodo] = useState<{ inicio: Date; fim: Date }>(() => ({ inicio: new Date(), fim: new Date() }));
-  const [aberta, setAberta] = useState<{ reserva: Reserva | null; dia?: string } | null>(null);
+  const [aberta, setAberta] = useState<{ reserva: Reserva | null; dia?: string; aba?: AbaReserva; comentario?: string; vez?: number } | null>(null);
+  const [contadores, setContadores] = useState<Contadores>(new Map());
   const [mudanca, setMudanca] = useState<Mudanca | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -153,21 +167,27 @@ export function Agenda() {
 
   const carregar = useCallback(async () => {
     try {
-      const [r, p, u, g] = await Promise.all([
+      const [r, p, u, g, c] = await Promise.all([
         supabase.from('locacoes').select(COLUNAS_RESERVA).eq('excluido', false).order('inicio'),
         supabase.from('pessoas').select('id, nome, tipo, telefone, email, documento').eq('excluido', false).order('nome'),
-        supabase.from('usuarios').select('id, nome, status_acesso, perfil_id').order('nome'),
+        supabase.from('usuarios').select('id, nome, status_acesso, perfil_id, foto_google, foto_upload, usar_foto_upload').order('nome'),
         supabase.from('grupo_funcoes').select('perfil_id').eq('funcao', 'reservas.visualizar'),
+        supabase.rpc('contadores_reservas'),
       ]);
       const falha = r.error ?? p.error ?? u.error ?? g.error;
       if (falha) throw falha;
+      // Contadores são só enfeite do card: se falharem (ex.: migração 015 ainda não rodou), a agenda segue sem eles.
+      setContadores(
+        new Map(((c.data ?? []) as { locacao_id: string; anexos: number; comentarios: number }[]).map((x) => [x.locacao_id, { anexos: Number(x.anexos), comentarios: Number(x.comentarios) }])),
+      );
       const gruposAgenda = new Set((g.data ?? []).map((x: { perfil_id: string }) => x.perfil_id));
       setReservas((r.data ?? []).map(normalizarReserva));
       setPessoas((p.data ?? []) as Pessoa[]);
       setUsuarios(
-        (u.data ?? []).map((x: { id: string; nome: string; status_acesso: string; perfil_id: string | null }) => ({
+        (u.data ?? []).map((x: { id: string; nome: string; status_acesso: string; perfil_id: string | null; foto_google: string | null; foto_upload: string | null; usar_foto_upload: boolean }) => ({
           id: x.id,
           nome: x.nome,
+          foto: x.usar_foto_upload && x.foto_upload ? x.foto_upload : x.foto_google,
           responsavel: x.status_acesso === 'ativo' && !!x.perfil_id && gruposAgenda.has(x.perfil_id),
         })),
       );
@@ -181,6 +201,23 @@ export function Agenda() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  // Veio do sino ("#agenda?r=…"): abre a reserva na aba pedida e limpa a URL.
+  const carregou = reservas !== null;
+  useEffect(() => {
+    if (!carregou) return;
+    const abrirPedido = async () => {
+      const pedido = pedidoDaUrl();
+      if (!pedido) return;
+      window.history.replaceState(null, '', '#agenda');
+      const { data, error } = await supabase.from('locacoes').select(COLUNAS_RESERVA).eq('id', pedido.id).maybeSingle();
+      if (error || !data) return setErro('Essa reserva não existe mais ou você não tem acesso a ela.');
+      setAberta({ reserva: normalizarReserva(data), aba: pedido.aba, comentario: pedido.comentario, vez: Date.now() });
+    };
+    void abrirPedido();
+    window.addEventListener('hashchange', abrirPedido);
+    return () => window.removeEventListener('hashchange', abrirPedido);
+  }, [carregou]);
 
   // O aviso "Reserva movida" some sozinho.
   useEffect(() => {
@@ -269,6 +306,7 @@ export function Agenda() {
               dataInicial={periodo.inicio}
               editavel={tem('reservas.alterar') && !celular}
               vePagamento={vePagamento}
+              contadores={contadores}
               nomePessoa={nomePessoa}
               onPeriodo={(t, inicio, fim) => {
                 setTitulo(t);
@@ -283,15 +321,18 @@ export function Agenda() {
         </div>
       ) : (
         <section className="secao">
-          <ListaReservas reservas={visiveis} nomePessoa={nomePessoa} nomeUsuario={nomeUsuario} vePagamento={vePagamento} onAbrir={(r) => setAberta({ reserva: r })} />
+          <ListaReservas reservas={visiveis} contadores={contadores} nomePessoa={nomePessoa} nomeUsuario={nomeUsuario} vePagamento={vePagamento} onAbrir={(r) => setAberta({ reserva: r })} />
         </section>
       )}
       {calendario && celular && <p className="note">Toque na reserva para abrir. Arrastar funciona no computador e no tablet.</p>}
 
       {aberta && (
         <FormReserva
+          key={aberta.vez ?? aberta.reserva?.id ?? 'nova'}
           reserva={aberta.reserva}
           diaInicial={aberta.dia}
+          abaInicial={aberta.aba}
+          comentarioDestaque={aberta.comentario}
           pessoas={pessoas}
           usuarios={usuarios}
           onPessoaNova={(p) => setPessoas((ps) => [...ps, p].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')))}

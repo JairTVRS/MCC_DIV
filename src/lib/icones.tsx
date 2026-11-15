@@ -20,6 +20,10 @@ const PATHS: Record<string, string> = {
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   relogio: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  clipe: '<path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.4 8.4a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
+  balao: '<path d="M4 5h16v11H9l-5 4z"/>',
+  sino: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0"/>',
+  enviar: '<path d="M4 12l16-8-6 16-2-7z"/>',
   esq: '<path d="M15 6l-6 6 6 6"/>',
   dir: '<path d="M9 6l6 6-6 6"/>',
 };

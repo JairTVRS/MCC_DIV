@@ -11,6 +11,7 @@ Web app para gerenciar as locações da casa de eventos: agenda contínua, reser
 
 | Versão | Data | Descrição |
 |---|---|---|
+| v0.8.0 | 15/11/2026 | Etapa 8: aba Anexos da reserva (arrastar ou escolher vários arquivos, categoria, miniatura, abrir, trocar categoria, excluir), categorias de anexo em Configurações, aba Comentários com menções @ (editar o próprio, excluir), sino de notificações em tempo real (menções, pedidos de acesso, parcelas a vencer e vencidas) que abre a reserva na aba certa, clipe e balão com a quantidade no card da agenda |
 | v0.7.0 | 15/11/2026 | Etapa 7: prazos de pagamento (nome gerado das parcelas), plano sempre pelo prazo (quantidade do prazo, última parcela fecha o total), registrar pagamento com comprovante e prévia, Reservado automático no 1º pagamento ou com desconto total e volta para Cadastrado sem nada pago, devolução no cancelamento, desconto com motivo. Histórico da reserva (relógio). Agenda com cor por status e filtro de status |
 | v0.6.0 | 15/11/2026 | Etapas 5 e 6: agenda em calendário (FullCalendar) com visões Mês (padrão), Semana, Dia e Lista; mês arrasta entre dias mantendo o horário; semana/dia sem eixo de horas, arrastar e esticar em passos de 15 min; confirmação e conferência de conflito antes de gravar; celular com dia por dia e mês |
 | v0.4.1 | 15/11/2026 | Logo sem fundo e ícone da aba publicados com o app (`public/marca/`); configurações aceitam também imagens em `/marca/...` |
@@ -123,6 +124,7 @@ npm run test:db              # roda todas as migrações num Postgres em memóri
 - **Usuários:** o nome só muda por quem administra usuários; cada um troca a própria foto, que precisa estar na sua pasta do Storage. Trocar o tema ou ver as novidades não entra no log.
 - **Usuários online:** canal de presença privado do Realtime (`online`), aberto só para usuário ativo.
 - **Pagamento:** o status (pendente, parcial, pago, devolvido, devolvido parcial) é calculado pelo banco a partir das parcelas e da devolução, sobre o **valor final** (valor − desconto). O plano de parcelas é gravado por `salvar_parcelas(reserva, plano)`, que troca só as em aberto. Qualquer valor pago deixa a reserva **Reservado**; pagamento desfeito sem nada pago volta para **Cadastrado**. Os prazos (`prazos_pagamento`) contam a partir de `locacoes.pre_reserva_em`.
+- **Anexos e comentários:** a categoria do anexo precisa existir e estar ativa (`categorias_anexo`; "Comprovante" é do sistema). Menção só a usuário ativo que vê a agenda, e só o autor marca pessoas no próprio comentário; cada menção vira aviso no sino. `contadores_reservas()` dá os números do card e `minhas_notificacoes()` os avisos já com título e detalhe, só os do próprio usuário.
 - **Log:** toda criação, alteração (campo, valor anterior e novo), exclusão e restauração vai para `log_eventos`, que ninguém altera nem apaga.
 
 ### Etapas do plano
@@ -134,7 +136,7 @@ npm run test:db              # roda todas as migrações num Postgres em memóri
 5. ✅ Visões semanal e diária com arrastar e redimensionar
 6. ✅ Visão mensal e lista para celular
 7. ✅ Pagamento: prazos, rateio, comprovante, reservado automático, devolução e desconto
-8. Anexos, comentários com menções e sino de notificações
+8. ✅ Anexos, comentários com menções e sino de notificações
 9. Relógios de log e lixeira
 10. Lista / relatório com filtros e exportação
 11. Painel de novidades, testes por perfil e publicação

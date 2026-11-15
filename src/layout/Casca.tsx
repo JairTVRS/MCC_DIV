@@ -14,6 +14,7 @@ import { Avatar, fotoDe } from './Avatar';
 import { Marca } from './Marca';
 import { MeuPerfil } from './MeuPerfil';
 import { Online, useOnline } from './Online';
+import { Sino } from './Sino';
 import { TrocarFoto } from './TrocarFoto';
 
 type Pagina = 'agenda' | 'lista' | 'pessoas' | 'usuarios' | 'configuracoes';
@@ -27,7 +28,8 @@ const PAGINAS: { id: Pagina; titulo: string; icone: string; funcao: CodigoFuncao
 ];
 
 function paginaDaUrl(): Pagina {
-  const h = window.location.hash.replace('#', '');
+  // "#agenda?r=…&aba=…" (vindo do sino): a página é o que vem antes do "?".
+  const h = window.location.hash.replace('#', '').split('?')[0];
   return (['agenda', 'lista', 'pessoas', 'usuarios', 'configuracoes'] as string[]).includes(h) ? (h as Pagina) : 'agenda';
 }
 
@@ -147,6 +149,7 @@ export function Casca() {
           </button>
           <h1>{titulo}</h1>
           <span className="sp" />
+          <Sino usuarioId={usuario.id} />
           <button className="ib" onClick={alternarTema} title={tema === 'escuro' ? 'Usar tema claro' : 'Usar tema escuro'} aria-label="Alternar tema">
             <Icone nome={tema === 'escuro' ? 'sun' : 'moon'} />
           </button>

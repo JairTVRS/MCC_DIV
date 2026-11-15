@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import type { Reserva } from '../../lib/tipos';
+import { Contagens } from './Contagens';
 import { COMPROMISSO, PAGAMENTO, reais } from './formatos';
 
 type Filtro = 'proximas' | 'anteriores' | 'todas';
 
 interface Props {
   reservas: Reserva[];
+  contadores: Map<string, { anexos: number; comentarios: number }>;
   nomePessoa: (id: string) => string;
   nomeUsuario: (id: string) => string;
   vePagamento: boolean;
@@ -13,7 +15,7 @@ interface Props {
 }
 
 /** Visão em lista: reservas por mês, com a cor do status (Próximas / Anteriores / Todas). */
-export function ListaReservas({ reservas, nomePessoa, nomeUsuario, vePagamento, onAbrir }: Props) {
+export function ListaReservas({ reservas, contadores, nomePessoa, nomeUsuario, vePagamento, onAbrir }: Props) {
   const [filtro, setFiltro] = useState<Filtro>('proximas');
   const agora = new Date().toISOString();
   const visiveis = reservas
@@ -68,7 +70,10 @@ export function ListaReservas({ reservas, nomePessoa, nomeUsuario, vePagamento, 
                         </span>
                       </span>
                       <span className="reserva-lado">
-                        <span className={`status-chip st-${r.status_compromisso}`}>{COMPROMISSO[r.status_compromisso].rotulo}</span>
+                        <span className="reserva-chips">
+                          <Contagens anexos={contadores.get(r.id)?.anexos} comentarios={contadores.get(r.id)?.comentarios} />
+                          <span className={`status-chip st-${r.status_compromisso}`}>{COMPROMISSO[r.status_compromisso].rotulo}</span>
+                        </span>
                         {vePagamento && (
                           <span className="reserva-valor">
                             {reais(r.valor_total - r.desconto)} <span className={`selo pg-${r.status_pagamento}`}>{PAGAMENTO[r.status_pagamento]}</span>

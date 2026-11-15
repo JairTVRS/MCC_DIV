@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useSessao } from '../../auth/Sessao';
+import { CategoriasAnexo } from './CategoriasAnexo';
 import { FormasPagamento } from './FormasPagamento';
 import { Geral } from './Geral';
 import { Lixeira } from './Lixeira';
 import { PrazosPagamento } from './PrazosPagamento';
 
-type Aba = 'geral' | 'formas' | 'prazos' | 'lixeira';
-const ABAS: Aba[] = ['geral', 'formas', 'prazos', 'lixeira'];
+type Aba = 'geral' | 'formas' | 'prazos' | 'categorias' | 'lixeira';
+const ABAS: Aba[] = ['geral', 'formas', 'prazos', 'categorias', 'lixeira'];
 
 function abaLembrada(): Aba {
   try {
@@ -25,6 +26,7 @@ export function Configuracoes() {
     { id: 'geral', titulo: 'Geral' },
     { id: 'formas', titulo: 'Formas de pagamento' },
     { id: 'prazos', titulo: 'Prazos de pagamento' },
+    { id: 'categorias', titulo: 'Categorias de anexo' },
     ...(tem('configuracoes.lixeira') ? [{ id: 'lixeira' as const, titulo: 'Lixeira' }] : []),
   ];
   const [escolhida, setEscolhida] = useState<Aba>(abaLembrada);
@@ -33,6 +35,7 @@ export function Configuracoes() {
     geral: tem('configuracoes.nome_logo'),
     formas: tem('configuracoes.formas_pagamento'),
     prazos: tem('configuracoes.prazos'),
+    categorias: tem('configuracoes.categorias_anexo'),
     lixeira: true,
   }[aba];
 
@@ -59,6 +62,7 @@ export function Configuracoes() {
         {aba === 'geral' && <Geral podeAlterar={podeAlterar} />}
         {aba === 'formas' && <FormasPagamento podeAlterar={podeAlterar} />}
         {aba === 'prazos' && <PrazosPagamento podeAlterar={podeAlterar} />}
+        {aba === 'categorias' && <CategoriasAnexo podeAlterar={podeAlterar} />}
         {aba === 'lixeira' && <Lixeira />}
       </div>
     </div>
