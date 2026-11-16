@@ -72,6 +72,17 @@ export interface Pessoa {
   documento: string | null;
   /** Inativa não entra em reserva nova; as antigas e o histórico continuam (v1.0.0). */
   ativo: boolean;
+  /** Obrigatórios em cadastro novo (v1.1.0); pessoas antigas podem estar em branco até serem editadas. */
+  movimento_id: string | null;
+  paroquia_id: string | null;
+}
+
+/** Item de um cadastro simples (Movimentos, Paróquias). */
+export interface ItemCadastro {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  ordem: number;
 }
 
 export type StatusCompromisso = 'cadastrado' | 'pre_reserva' | 'reservado' | 'cancelado';

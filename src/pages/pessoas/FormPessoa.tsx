@@ -1,13 +1,13 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useSessao } from '../../auth/Sessao';
+import { COLUNAS_PESSOA, carregarMovimentosParoquias } from '../../lib/cadastros';
 import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
 import { supabase } from '../../lib/supabase';
-import type { Pessoa, TipoPessoa } from '../../lib/tipos';
+import type { ItemCadastro, Pessoa, TipoPessoa } from '../../lib/tipos';
 import { ehLocador, ehLocatario, mascaraTelefone } from '../agenda/formatos';
 import { JanelaHistorico } from '../historico/JanelaHistorico';
-
-const COLUNAS = 'id, nome, tipo, telefone, email, documento, ativo';
+import { SeletorCadastro } from './SeletorCadastro';
 
 interface Props {
   pessoa?: Pessoa | null; // sem pessoa = cadastro novo
@@ -17,8 +17,11 @@ interface Props {
   onSalvo: (p: Pessoa) => void;
 }
 
+const porOrdem = (a: ItemCadastro, b: ItemCadastro) => a.ordem - b.ordem || a.nome.localeCompare(b.nome, 'pt-BR');
+
 /**
  * Cadastro de pessoa (locatário, locador ou os dois). Abre da tela Pessoas e de dentro da reserva.
+ * Movimento e paróquia são obrigatórios (v1.1.0); pessoa antiga sem eles precisa preencher ao salvar.
  * Pessoa não é excluída: é inativada (Pessoas > Inativar e reativar), e o histórico continua.
  */
 export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo }: Props) {
@@ -28,28 +31,53 @@ export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo
   const [nome, setNome] = useState(pessoa?.nome ?? nomeInicial ?? '');
   const [locatario, setLocatario] = useState(pessoa ? ehLocatario(pessoa.tipo) : tipoInicial !== 'locador');
   const [locador, setLocador] = useState(pessoa ? ehLocador(pessoa.tipo) : tipoInicial === 'locador');
+  const [movimento, setMovimento] = useState(pessoa?.movimento_id ?? '');
+  const [paroquia, setParoquia] = useState(pessoa?.paroquia_id ?? '');
   const [telefone, setTelefone] = useState(pessoa?.telefone ?? '');
   const [email, setEmail] = useState(pessoa?.email ?? '');
   const [documento, setDocumento] = useState(pessoa?.documento ?? '');
+  const [movimentos, setMovimentos] = useState<ItemCadastro[]>([]);
+  const [paroquias, setParoquias] = useState<ItemCadastro[]>([]);
   const [confirmarInativar, setConfirmarInativar] = useState(false);
   const [historico, setHistorico] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const alvo = useMemo(() => (pessoa ? { tipo: 'pessoa' as const, id: pessoa.id } : null), [pessoa]);
 
+  useEffect(() => {
+    carregarMovimentosParoquias()
+      .then((c) => {
+        setMovimentos(c.movimentos);
+        setParoquias(c.paroquias);
+      })
+      .catch((e) => setErro(mensagemErro(e)));
+  }, []);
+
   const tipo: TipoPessoa | null = locatario && locador ? 'ambos' : locatario ? 'locatario' : locador ? 'locador' : null;
   const inativa = pessoa?.ativo === false;
+  const semCadastros = !!pessoa && (!pessoa.movimento_id || !pessoa.paroquia_id);
+  const completo = !!nome.trim() && !!tipo && !!movimento && !!paroquia;
 
   async function salvar(e: FormEvent) {
     e.preventDefault();
     if (!nome.trim()) return setErro('Informe o nome.');
     if (!tipo) return setErro('Marque se a pessoa é locatário, locador ou os dois.');
+    if (!movimento) return setErro('Escolha o movimento.');
+    if (!paroquia) return setErro('Escolha a paróquia.');
     setOcupado(true);
     setErro(null);
-    const dados = { nome: nome.trim(), tipo, telefone: telefone.trim() || null, email: email.trim() || null, documento: documento.trim() || null };
+    const dados = {
+      nome: nome.trim(),
+      tipo,
+      movimento_id: movimento,
+      paroquia_id: paroquia,
+      telefone: telefone.trim() || null,
+      email: email.trim() || null,
+      documento: documento.trim() || null,
+    };
     const r = nova
-      ? await supabase.from('pessoas').insert(dados).select(COLUNAS).single()
-      : await supabase.from('pessoas').update(dados).eq('id', pessoa.id).select(COLUNAS).single();
+      ? await supabase.from('pessoas').insert(dados).select(COLUNAS_PESSOA).single()
+      : await supabase.from('pessoas').update(dados).eq('id', pessoa.id).select(COLUNAS_PESSOA).single();
     setOcupado(false);
     if (r.error) return setErro(mensagemErro(r.error));
     onSalvo(r.data as Pessoa);
@@ -59,7 +87,7 @@ export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo
     if (!pessoa) return;
     setOcupado(true);
     setErro(null);
-    const { data, error } = await supabase.from('pessoas').update({ ativo }).eq('id', pessoa.id).select(COLUNAS).single();
+    const { data, error } = await supabase.from('pessoas').update({ ativo }).eq('id', pessoa.id).select(COLUNAS_PESSOA).single();
     setOcupado(false);
     setConfirmarInativar(false);
     if (error) return setErro(mensagemErro(error));
@@ -84,6 +112,7 @@ export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo
         </div>
         <div className="m-body">
           {inativa && <p className="aviso">Pessoa inativa: não aparece para reservas novas. As reservas e o histórico dela continuam.</p>}
+          {semCadastros && editavel && !inativa && <p className="aviso">Cadastro anterior ao movimento e à paróquia: escolha os dois para salvar.</p>}
           <label className="campo">
             <span className="rot">Nome *</span>
             <input className="inp" value={nome} maxLength={120} autoFocus disabled={!editavel || ocupado} onChange={(e) => setNome(e.target.value)} />
@@ -100,6 +129,32 @@ export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo
                 <span>Locador</span>
               </label>
             </div>
+          </div>
+          <div className="duas-colunas">
+            <SeletorCadastro
+              qual="movimentos"
+              itens={movimentos}
+              valor={movimento}
+              podeIncluir={editavel && tem('configuracoes.movimentos')}
+              desabilitado={!editavel || ocupado}
+              onMudar={setMovimento}
+              onIncluido={(m) => {
+                setMovimentos((l) => [...l, m].sort(porOrdem));
+                setMovimento(m.id);
+              }}
+            />
+            <SeletorCadastro
+              qual="paroquias"
+              itens={paroquias}
+              valor={paroquia}
+              podeIncluir={editavel && tem('configuracoes.paroquias')}
+              desabilitado={!editavel || ocupado}
+              onMudar={setParoquia}
+              onIncluido={(p) => {
+                setParoquias((l) => [...l, p].sort(porOrdem));
+                setParoquia(p.id);
+              }}
+            />
           </div>
           <div className="duas-colunas">
             <label className="campo">
@@ -153,7 +208,7 @@ export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo
                 {editavel ? 'Cancelar' : 'Fechar'}
               </button>
               {editavel && (
-                <button type="submit" className="btn pri" disabled={ocupado || !nome.trim() || !tipo}>
+                <button type="submit" className="btn pri" disabled={ocupado || !completo}>
                   {ocupado ? 'Salvando…' : 'Salvar'}
                 </button>
               )}

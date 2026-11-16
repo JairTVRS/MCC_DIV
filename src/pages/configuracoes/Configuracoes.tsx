@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useSessao } from '../../auth/Sessao';
 import { HistoricoGeral } from '../historico/HistoricoGeral';
+import { CadastroSimples } from './CadastroSimples';
 import { CategoriasAnexo } from './CategoriasAnexo';
 import { FormasPagamento } from './FormasPagamento';
 import { Geral } from './Geral';
 import { Lixeira } from './Lixeira';
 import { PrazosPagamento } from './PrazosPagamento';
 
-type Aba = 'geral' | 'formas' | 'prazos' | 'categorias' | 'historico' | 'lixeira';
-const ABAS: Aba[] = ['geral', 'formas', 'prazos', 'categorias', 'historico', 'lixeira'];
+type Aba = 'geral' | 'formas' | 'prazos' | 'categorias' | 'movimentos' | 'paroquias' | 'historico' | 'lixeira';
+const ABAS: Aba[] = ['geral', 'formas', 'prazos', 'categorias', 'movimentos', 'paroquias', 'historico', 'lixeira'];
 
 function abaLembrada(): Aba {
   try {
@@ -36,6 +37,8 @@ export function Configuracoes() {
           { id: 'formas' as const, titulo: 'Formas de pagamento' },
           { id: 'prazos' as const, titulo: 'Prazos de pagamento' },
           { id: 'categorias' as const, titulo: 'Categorias de anexo' },
+          { id: 'movimentos' as const, titulo: 'Movimentos' },
+          { id: 'paroquias' as const, titulo: 'Paróquias' },
         ]
       : []),
     ...(tem('logs.geral') ? [{ id: 'historico' as const, titulo: 'Histórico' }] : []),
@@ -48,6 +51,8 @@ export function Configuracoes() {
     formas: tem('configuracoes.formas_pagamento'),
     prazos: tem('configuracoes.prazos'),
     categorias: tem('configuracoes.categorias_anexo'),
+    movimentos: tem('configuracoes.movimentos'),
+    paroquias: tem('configuracoes.paroquias'),
     historico: true,
     lixeira: true,
   }[aba];
@@ -76,6 +81,8 @@ export function Configuracoes() {
         {aba === 'formas' && <FormasPagamento podeAlterar={podeAlterar} />}
         {aba === 'prazos' && <PrazosPagamento podeAlterar={podeAlterar} />}
         {aba === 'categorias' && <CategoriasAnexo podeAlterar={podeAlterar} />}
+        {aba === 'movimentos' && <CadastroSimples key="movimentos" qual="movimentos" podeAlterar={podeAlterar} />}
+        {aba === 'paroquias' && <CadastroSimples key="paroquias" qual="paroquias" podeAlterar={podeAlterar} />}
         {aba === 'historico' && <HistoricoGeral />}
         {aba === 'lixeira' && <Lixeira />}
       </div>

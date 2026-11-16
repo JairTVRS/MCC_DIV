@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSessao } from '../../auth/Sessao';
+import { COLUNAS_PESSOA, carregarMovimentosParoquias } from '../../lib/cadastros';
 import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
 import { supabase } from '../../lib/supabase';
@@ -20,10 +21,15 @@ export function Pessoas() {
   const [busca, setBusca] = useState('');
   const [aberta, setAberta] = useState<Pessoa | 'nova' | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [nomes, setNomes] = useState<Map<string, string>>(new Map());
 
   const carregar = useCallback(async () => {
-    const { data, error } = await supabase.from('pessoas').select('id, nome, tipo, telefone, email, documento, ativo').eq('excluido', false).order('nome');
+    const [{ data, error }, cad] = await Promise.all([
+      supabase.from('pessoas').select(COLUNAS_PESSOA).eq('excluido', false).order('nome'),
+      carregarMovimentosParoquias().catch(() => ({ movimentos: [], paroquias: [] })),
+    ]);
     if (error) setErro(mensagemErro(error));
+    setNomes(new Map([...cad.movimentos, ...cad.paroquias].map((c) => [c.id, c.nome])));
     setPessoas((data ?? []) as Pessoa[]);
   }, []);
 
@@ -38,7 +44,10 @@ export function Pessoas() {
   const doTipo = (p: Pessoa, f: Filtro) => f === 'todos' || (f === 'locatario' ? ehLocatario(p.tipo) : ehLocador(p.tipo));
   const qtd = (f: Filtro) => naSituacao.filter((p) => doTipo(p, f)).length;
   const qtdSit = (s: Situacao) => pessoas.filter((p) => s === 'todas' || (s === 'ativas' ? p.ativo : !p.ativo)).length;
-  const visiveis = naSituacao.filter((p) => doTipo(p, filtro) && (!termo || semAcento(`${p.nome} ${p.telefone ?? ''} ${p.email ?? ''} ${p.documento ?? ''}`).includes(termo)));
+  const grupo = (p: Pessoa) => [p.movimento_id && nomes.get(p.movimento_id), p.paroquia_id && nomes.get(p.paroquia_id)].filter(Boolean).join(' · ');
+  const visiveis = naSituacao.filter(
+    (p) => doTipo(p, filtro) && (!termo || semAcento(`${p.nome} ${p.telefone ?? ''} ${p.email ?? ''} ${p.documento ?? ''} ${grupo(p)}`).includes(termo)),
+  );
 
   async function aoSalvar() {
     setAberta(null);
@@ -72,7 +81,7 @@ export function Pessoas() {
               </button>
             ))}
           </div>
-          <input className="inp busca" type="search" value={busca} placeholder="Buscar por nome, telefone, e-mail ou documento" aria-label="Buscar pessoa" onChange={(e) => setBusca(e.target.value)} />
+          <input className="inp busca" type="search" value={busca} placeholder="Buscar por nome, contato, documento, movimento ou paróquia" aria-label="Buscar pessoa" onChange={(e) => setBusca(e.target.value)} />
         </div>
         {erro && (
           <p className="msg-erro" role="alert">
@@ -89,6 +98,7 @@ export function Pessoas() {
                   <span className="tx">
                     <strong>{p.nome}</strong>
                     <span>{[p.telefone, p.email].filter(Boolean).join(' · ') || 'Sem contato'}</span>
+                    {grupo(p) && <span>{grupo(p)}</span>}
                   </span>
                   {!p.ativo && <span className="tag">Inativa</span>}
                   <span className="tag">{TIPO_PESSOA[p.tipo]}</span>

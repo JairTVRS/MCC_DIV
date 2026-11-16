@@ -36,6 +36,8 @@ export interface Contexto {
   perfis: Map<string, string>;
   formas: Map<string, string>;
   prazos: Map<string, string>;
+  /** Movimentos e paróquias juntos (ids não se repetem entre as tabelas). */
+  cadastros: Map<string, string>;
   funcoes: Map<string, string>;
   parcelas: Map<string, { numero: number; tipo: string; valor: number; vencimento: string }>;
 }
@@ -47,7 +49,7 @@ export const TIPOS_REGISTRO: { id: string; rotulo: string; tabelas: string[] }[]
   { id: 'comentarios', rotulo: 'Comentários', tabelas: ['comentarios', 'comentario_mencoes'] },
   { id: 'pessoas', rotulo: 'Pessoas', tabelas: ['pessoas'] },
   { id: 'usuarios', rotulo: 'Usuários e grupos', tabelas: ['usuarios', 'perfis', 'grupo_funcoes'] },
-  { id: 'configuracoes', rotulo: 'Configurações', tabelas: ['configuracoes', 'formas_pagamento', 'prazos_pagamento', 'categorias_anexo'] },
+  { id: 'configuracoes', rotulo: 'Configurações', tabelas: ['configuracoes', 'formas_pagamento', 'prazos_pagamento', 'categorias_anexo', 'movimentos', 'paroquias'] },
 ];
 
 const NOME_TABELA: Record<string, [string, 'a' | 'o']> = {
@@ -65,6 +67,8 @@ const NOME_TABELA: Record<string, [string, 'a' | 'o']> = {
   formas_pagamento: ['forma de pagamento', 'a'],
   prazos_pagamento: ['prazo de pagamento', 'o'],
   categorias_anexo: ['categoria de anexo', 'a'],
+  movimentos: ['movimento', 'o'],
+  paroquias: ['paróquia', 'a'],
 };
 const ACAO: Record<string, string> = { criou: 'incluiu', alterou: 'alterou', excluiu: 'excluiu', restaurou: 'restaurou', apagou: 'apagou', liberou: 'liberou', retirou: 'retirou' };
 
@@ -118,6 +122,8 @@ const CAMPO: Record<string, string> = {
   favicon: 'Ícone da aba',
   favicon_proprio: 'Ícone próprio',
   usuario_mencionado_id: 'Marcou',
+  movimento_id: 'Movimento',
+  paroquia_id: 'Paróquia',
 };
 const OCULTOS = new Set([
   'espaco_id', 'locacao_id', 'parcela_id', 'devolucao_id', 'caminho_storage', 'tamanho', 'autor_id', 'editado_em', 'id',
@@ -132,7 +138,7 @@ const mapa = (linhas: { id: string; nome: string }[] | null) => new Map((linhas 
 
 /** Nomes de pessoas, usuários, grupos, formas, prazos e funções para traduzir o log. */
 export async function carregarContexto(locacaoId?: string): Promise<Contexto> {
-  const [pe, us, pf, fo, pr, fu, pa] = await Promise.all([
+  const [pe, us, pf, fo, pr, fu, pa, mo, pq] = await Promise.all([
     supabase.from('pessoas').select('id, nome'),
     supabase.from('usuarios').select('id, nome'),
     supabase.from('perfis').select('id, nome'),
@@ -140,6 +146,8 @@ export async function carregarContexto(locacaoId?: string): Promise<Contexto> {
     supabase.from('prazos_pagamento').select('id, nome'),
     supabase.from('funcoes').select('codigo, rotulo, pai'),
     locacaoId ? supabase.from('parcelas').select('id, numero, tipo, valor, vencimento').eq('locacao_id', locacaoId) : Promise.resolve({ data: [] }),
+    supabase.from('movimentos').select('id, nome'),
+    supabase.from('paroquias').select('id, nome'),
   ]);
   const funcoes = (fu.data ?? []) as { codigo: string; rotulo: string; pai: string | null }[];
   const rotulo = new Map(funcoes.map((f) => [f.codigo, f.rotulo]));
@@ -149,6 +157,7 @@ export async function carregarContexto(locacaoId?: string): Promise<Contexto> {
     perfis: mapa(pf.data as { id: string; nome: string }[]),
     formas: mapa(fo.data as { id: string; nome: string }[]),
     prazos: mapa(pr.data as { id: string; nome: string }[]),
+    cadastros: mapa([...((mo.data ?? []) as { id: string; nome: string }[]), ...((pq.data ?? []) as { id: string; nome: string }[])]),
     // "Agenda > Incluir" (e as funções que saíram da árvore, para o histórico antigo continuar legível)
     funcoes: new Map([
       ['pessoas.excluir', 'Pessoas > Excluir'],
@@ -175,6 +184,7 @@ function valor(ctx: Contexto, campo: string, v: string | null): string {
   if (campo === 'perfil_id') return ctx.perfis.get(v) ?? 'grupo removido';
   if (campo === 'forma_pagamento_id') return ctx.formas.get(v) ?? 'forma removida';
   if (campo === 'prazo_id') return ctx.prazos.get(v) ?? 'prazo removido';
+  if (campo === 'movimento_id' || campo === 'paroquia_id') return ctx.cadastros.get(v) ?? '?';
   if (campo === 'comprovante_id') return 'anexado';
   if (campo === 'foto_upload' || campo.startsWith('logo_') || campo === 'favicon') return 'imagem';
   if (campo === 'parcelas') return 'alteradas';

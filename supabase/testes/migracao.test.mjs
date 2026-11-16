@@ -37,6 +37,12 @@ const su=async(sql,p)=>{await db.exec('reset role; select set_config(\'request.j
 const as=async(uid,sql,p)=>{await db.exec(`reset role; select set_config('request.jwt.claim.sub','${uid}',false); set role authenticated;`); try{ return (await db.query(sql,p)).rows; } finally { await db.exec('reset role'); }};
 const erro=async(fn)=>{try{await fn(); return null;}catch(e){return e.message;}};
 
+// v1.1.0: pessoa exige movimento e paróquia. Só no teste, as colunas ganham um padrão para os
+// testes antigos (que cadastram pessoa sem eles) seguirem valendo; a regra é testada na seção 18.
+const [movPadrao]=await su(`insert into movimentos(nome) values('Movimento Teste') returning id`);
+const [parPadrao]=await su(`insert into paroquias(nome) values('Paróquia Teste') returning id`);
+await su(`alter table pessoas alter column movimento_id set default '${movPadrao.id}', alter column paroquia_id set default '${parPadrao.id}'`);
+
 await su(`update config_privada set admin_email='Admin@Exemplo.com'`);
 await su(`insert into auth.users(id,email,raw_user_meta_data) values ($1,'admin@exemplo.com','{"full_name":"Admin Teste","avatar_url":"http://x/a.png"}')`,[A]);
 await su(`insert into auth.users(id,email,raw_user_meta_data) values ($1,'op@exemplo.com','{"name":"Operador Teste"}')`,[B]);
@@ -487,6 +493,42 @@ ok(!!await erro(()=>as(B,`update locacoes set status_compromisso='reservado' whe
 ok(!!await erro(()=>as(B,`select excluir_registro('locacoes','${rpi.id}')`)),'Operador não exclui reserva');
 ok(!!await erro(()=>as(C,`select * from listar_lixeira()`)),'Gestor não vê a lixeira');
 ok((await su(`select numero from versoes_app where numero='v1.0.0'`)).length===1,'novidades da v1.0.0 registradas');
+
+console.log('18. v1.1.0: movimento e paróquia da pessoa');
+ok((await funcoesDe('Administrador')).includes('configuracoes.movimentos')&&(await funcoesDe('Administrador')).includes('configuracoes.paroquias'),'Administrador tem "Movimentos" e "Paróquias"');
+ok(!(await funcoesDe('Operador')).includes('configuracoes.movimentos')&&!(await funcoesDe('Operador')).includes('configuracoes.paroquias'),'Operador não cuida dos cadastros');
+ok(!!await erro(()=>as(B,`insert into movimentos(nome) values('MCC')`)),'sem "Movimentos" não cadastra movimento');
+ok(!!await erro(()=>as(B,`insert into paroquias(nome) values('Matriz')`)),'sem "Paróquias" não cadastra paróquia');
+const [mv]=await as(A,`insert into movimentos(nome,ordem) values('  MCC ',1) returning id, nome`);
+const [pq]=await as(A,`insert into paroquias(nome,ordem) values('Matriz',1) returning id`);
+ok(mv.nome==='MCC','nome do movimento sem espaços sobrando');
+ok(!!await erro(()=>as(A,`insert into movimentos(nome) values('mcc')`)),'movimento repetido (sem diferenciar maiúsculas) é recusado');
+ok(!!await erro(()=>as(A,`delete from movimentos where id='${mv.id}'`))||(await su(`select count(*)::int n from movimentos where id=$1`,[mv.id]))[0].n===1,'movimento não é apagado');
+ok((await as(H,`select id from movimentos`)).length>0&&(await as(H,`select id from paroquias`)).length>0,'qualquer usuário ativo lê os cadastros (para o seletor)');
+e=await erro(()=>as(A,`insert into pessoas(nome,tipo,movimento_id,paroquia_id) values('Sem Movimento','locatario',null,'${pq.id}')`));
+ok(!!e&&/Escolha o movimento/.test(e),'pessoa nova sem movimento é recusada');
+e=await erro(()=>as(A,`insert into pessoas(nome,tipo,movimento_id,paroquia_id) values('Sem Paróquia','locatario','${mv.id}',null)`));
+ok(!!e&&/Escolha a paróquia/.test(e),'pessoa nova sem paróquia é recusada');
+const [pm]=await as(A,`insert into pessoas(nome,tipo,movimento_id,paroquia_id) values('Com Movimento','locatario','${mv.id}','${pq.id}') returning id`);
+ok(!!pm.id,'pessoa com movimento e paróquia é cadastrada');
+ok(!!await erro(()=>as(A,`update pessoas set movimento_id=null where id='${pm.id}'`)),'movimento preenchido não volta a ficar em branco');
+await as(A,`update movimentos set ativo=false where id='${mv.id}'`);
+await as(A,`update pessoas set telefone='37999990000' where id='${pm.id}'`);
+ok((await su(`select movimento_id from pessoas where id=$1`,[pm.id]))[0].movimento_id===mv.id,'quem já tinha um movimento desativado continua com ele e pode ser editado');
+e=await erro(()=>as(A,`insert into pessoas(nome,tipo,movimento_id,paroquia_id) values('Mov Inativo','locatario','${mv.id}','${pq.id}')`));
+ok(!!e&&/movimento está inativo/.test(e),'movimento inativo não entra em cadastro novo');
+await as(A,`update movimentos set ativo=true where id='${mv.id}'`);
+// Pessoa antiga (de antes da v1.1.0) sem movimento: continua editável e inativável até alguém preencher.
+await su(`alter table pessoas disable trigger movimento_paroquia`);
+await su(`update pessoas set movimento_id=null, paroquia_id=null where id='${pi.id}'`);
+await su(`alter table pessoas enable trigger movimento_paroquia`);
+await as(A,`update pessoas set ativo=false where id='${pi.id}'`);
+ok((await su(`select ativo from pessoas where id=$1`,[pi.id]))[0].ativo===false,'pessoa antiga sem movimento ainda pode ser inativada');
+await as(A,`update pessoas set movimento_id='${mv.id}', paroquia_id='${pq.id}' where id='${pi.id}'`);
+ok((await su(`select movimento_id from pessoas where id=$1`,[pi.id]))[0].movimento_id===mv.id,'pessoa antiga recebe movimento e paróquia ao ser editada');
+hg=await as(A,`select * from historico(p_busca=>'MCC', p_limite=>50)`);
+ok(hg.some(h=>h.tabela==='movimentos'&&h.registro==='MCC'),'histórico geral mostra o nome do movimento');
+ok((await su(`select numero from versoes_app where numero='v1.1.0'`)).length===1,'novidades da v1.1.0 registradas');
 
 console.log(falhas?`\n${falhas} FALHA(S)`:'\nTODOS OS TESTES PASSARAM');
 process.exit(falhas?1:0);

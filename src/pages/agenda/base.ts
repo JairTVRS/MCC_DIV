@@ -1,19 +1,29 @@
+import { COLUNAS_PESSOA, carregarMovimentosParoquias } from '../../lib/cadastros';
 import { supabase } from '../../lib/supabase';
-import type { Pessoa } from '../../lib/tipos';
+import type { ItemCadastro, Pessoa } from '../../lib/tipos';
 import type { UsuarioCurto } from './FormReserva';
 
 export type Contadores = Map<string, { anexos: number; comentarios: number }>;
 
 /**
  * O que a Agenda e o Relatório precisam para abrir o card da reserva:
- * pessoas (ativas e inativas), usuários (quem pode ser responsável) e contadores de anexos/comentários.
+ * pessoas (ativas e inativas), usuários (quem pode ser responsável), contadores de anexos/comentários
+ * e os cadastros de movimento e paróquia (filtros e colunas, v1.1.0).
  */
-export async function carregarBase(): Promise<{ pessoas: Pessoa[]; usuarios: UsuarioCurto[]; contadores: Contadores }> {
-  const [p, u, g, c] = await Promise.all([
-    supabase.from('pessoas').select('id, nome, tipo, telefone, email, documento, ativo').eq('excluido', false).order('nome'),
+export async function carregarBase(): Promise<{
+  pessoas: Pessoa[];
+  usuarios: UsuarioCurto[];
+  contadores: Contadores;
+  movimentos: ItemCadastro[];
+  paroquias: ItemCadastro[];
+}> {
+  const [p, u, g, c, cad] = await Promise.all([
+    supabase.from('pessoas').select(COLUNAS_PESSOA).eq('excluido', false).order('nome'),
     supabase.from('usuarios').select('id, nome, status_acesso, perfil_id, foto_google, foto_upload, usar_foto_upload').order('nome'),
     supabase.from('grupo_funcoes').select('perfil_id').eq('funcao', 'reservas.visualizar'),
     supabase.rpc('contadores_reservas'),
+    // Movimentos e paróquias só alimentam filtros e colunas: se falharem, seguem vazios.
+    carregarMovimentosParoquias().catch(() => ({ movimentos: [], paroquias: [] })),
   ]);
   const falha = p.error ?? u.error ?? g.error;
   if (falha) throw falha;
@@ -32,5 +42,7 @@ export async function carregarBase(): Promise<{ pessoas: Pessoa[]; usuarios: Usu
     contadores: new Map(
       ((c.data ?? []) as { locacao_id: string; anexos: number; comentarios: number }[]).map((x) => [x.locacao_id, { anexos: Number(x.anexos), comentarios: Number(x.comentarios) }]),
     ),
+    movimentos: cad.movimentos,
+    paroquias: cad.paroquias,
   };
 }

@@ -4,80 +4,31 @@ import { useSessao } from '../../auth/Sessao';
 import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
 import { supabase } from '../../lib/supabase';
-import type { Pessoa, Reserva, StatusCompromisso } from '../../lib/tipos';
+import type { ItemCadastro, Pessoa, Reserva, StatusCompromisso } from '../../lib/tipos';
 import type { Mudanca, VisaoCalendario } from './Calendario';
 import { ConfirmarMudanca } from './ConfirmarMudanca';
+import { FiltroMulti, lembrados, lembrar, type OpcaoFiltro } from './FiltroMulti';
 import { COLUNAS_RESERVA, FormReserva, normalizarReserva, type AbaReserva, type UsuarioCurto } from './FormReserva';
 import { ListaReservas } from './ListaReservas';
 import { carregarBase, type Contadores } from './base';
 import { COMPROMISSO, dataLocal } from './formatos';
 
 const STATUS: StatusCompromisso[] = ['cadastrado', 'pre_reserva', 'reservado', 'cancelado'];
+/** Opção "sem movimento/paróquia" (locatário cadastrado antes da v1.1.0). */
+const SEM = '-';
 
-/** Status escolhidos no filtro, lembrados no aparelho. Nenhum escolhido = mostra todos. */
-function statusLembrados(): Set<StatusCompromisso> {
-  try {
-    const s = JSON.parse(localStorage.getItem('agenda-filtro-status') ?? '[]');
-    if (Array.isArray(s)) return new Set(s.filter((x): x is StatusCompromisso => STATUS.includes(x)));
-  } catch {
-    /* armazenamento indisponível */
-  }
-  return new Set();
-}
+/** Filtros da barra (marcados lembrados no aparelho; nada marcado = todos). */
+type Filtros = { status: Set<string>; movimento: Set<string>; paroquia: Set<string> };
+const CHAVE: Record<keyof Filtros, string> = { status: 'agenda-filtro-status', movimento: 'agenda-filtro-movimento', paroquia: 'agenda-filtro-paroquia' };
 
-/** Campo multiseleção de status: lista com caixas de marcar; nada marcado = todos. */
-function FiltroStatus({ escolhidos, contagem, onMudar }: { escolhidos: Set<StatusCompromisso>; contagem: (s: StatusCompromisso) => number; onMudar: (novo: Set<StatusCompromisso>) => void }) {
-  const [aberto, setAberto] = useState(false);
-  const caixa = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!aberto) return;
-    const fora = (e: MouseEvent) => !caixa.current?.contains(e.target as Node) && setAberto(false);
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setAberto(false);
-    document.addEventListener('mousedown', fora);
-    document.addEventListener('keydown', esc);
-    return () => {
-      document.removeEventListener('mousedown', fora);
-      document.removeEventListener('keydown', esc);
-    };
-  }, [aberto]);
-
-  function alternar(s: StatusCompromisso) {
-    const novo = new Set(escolhidos);
-    if (novo.has(s)) novo.delete(s);
-    else novo.add(s);
-    onMudar(novo.size === STATUS.length ? new Set() : novo); // todos marcados = o mesmo que nenhum
-  }
-
-  const resumo = escolhidos.size === 0 ? 'Todos' : STATUS.filter((s) => escolhidos.has(s)).map((s) => COMPROMISSO[s].rotulo).join(', ');
-
-  return (
-    <div className="multi" ref={caixa}>
-      <button className={`multi-campo${escolhidos.size ? ' filtrando' : ''}`} aria-haspopup="listbox" aria-expanded={aberto} onClick={() => setAberto((v) => !v)}>
-        <span className="multi-rot">Status:</span>
-        <span className="multi-valor">{resumo}</span>
-        <Icone nome="down" tamanho={16} />
-      </button>
-      {aberto && (
-        <div className="multi-lista" role="listbox" aria-multiselectable="true" aria-label="Status da agenda">
-          {STATUS.map((s) => (
-            <label key={s} className={`multi-opcao st-${s}`}>
-              <input type="checkbox" checked={escolhidos.has(s)} onChange={() => alternar(s)} />
-              <span className="bolinha" aria-hidden="true" />
-              <span className="multi-nome">{COMPROMISSO[s].rotulo}</span>
-              <span className="multi-qtd">{contagem(s)}</span>
-            </label>
-          ))}
-          <div className="multi-rodape">
-            <span className="note">{escolhidos.size === 0 ? 'Nada marcado: mostra todos.' : `${escolhidos.size} marcado(s).`}</span>
-            <button className="btn peq" onClick={() => onMudar(new Set())} disabled={escolhidos.size === 0}>
-              Limpar
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+/**
+ * Opções de um filtro de cadastro: ativos e os desativados que ainda têm reserva,
+ * mais "Sem …" quando há locatário sem o campo. Quantidade = reservas carregadas.
+ */
+function opcoesCadastro(itens: ItemCadastro[], contagem: Map<string, number>, sem: string): OpcaoFiltro[] {
+  const lista: OpcaoFiltro[] = itens.filter((i) => i.ativo || contagem.has(i.id)).map((i) => ({ id: i.id, nome: i.nome, qtd: contagem.get(i.id) ?? 0 }));
+  if (contagem.has(SEM)) lista.push({ id: SEM, nome: sem, qtd: contagem.get(SEM) ?? 0 });
+  return lista;
 }
 
 type Visao = 'mes' | 'semana' | 'dia' | 'lista' | 'dias';
@@ -141,16 +92,14 @@ export function Agenda() {
   const [mudanca, setMudanca] = useState<Mudanca | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [filtroStatus, setFiltroStatus] = useState<Set<StatusCompromisso>>(statusLembrados);
+  const [filtros, setFiltros] = useState<Filtros>(() => ({ status: lembrados(CHAVE.status), movimento: lembrados(CHAVE.movimento), paroquia: lembrados(CHAVE.paroquia) }));
+  const [movimentos, setMovimentos] = useState<ItemCadastro[]>([]);
+  const [paroquias, setParoquias] = useState<ItemCadastro[]>([]);
   const cal = useRef<FullCalendar>(null);
 
-  function mudarFiltro(novo: Set<StatusCompromisso>) {
-    setFiltroStatus(novo);
-    try {
-      localStorage.setItem('agenda-filtro-status', JSON.stringify([...novo]));
-    } catch {
-      /* armazenamento indisponível */
-    }
+  function mudarFiltro(qual: keyof Filtros, novo: Set<string>) {
+    setFiltros((f) => ({ ...f, [qual]: novo }));
+    lembrar(CHAVE[qual], novo);
   }
 
   // Ao passar de computador para celular (ou o contrário), troca para a visão daquele aparelho.
@@ -172,6 +121,8 @@ export function Agenda() {
       setReservas((r.data ?? []).map(normalizarReserva));
       setPessoas(base.pessoas);
       setUsuarios(base.usuarios);
+      setMovimentos(base.movimentos);
+      setParoquias(base.paroquias);
       setErro(null);
     } catch (e) {
       setErro(mensagemErro(e));
@@ -233,7 +184,30 @@ export function Agenda() {
   const podeIncluir = tem('reservas.incluir');
   const visoes = celular ? VISOES_CELULAR : VISOES_PC;
   const calendario = visao !== 'lista';
-  const visiveis = filtroStatus.size === 0 ? reservas : reservas.filter((r) => filtroStatus.has(r.status_compromisso));
+  // Movimento e paróquia vêm do locatário da reserva.
+  const locatario = new Map(pessoas.map((p) => [p.id, p]));
+  const movDe = (r: Reserva) => locatario.get(r.locatario_id)?.movimento_id ?? SEM;
+  const parDe = (r: Reserva) => locatario.get(r.locatario_id)?.paroquia_id ?? SEM;
+  const contar = (f: (r: Reserva) => string) => {
+    const m = new Map<string, number>();
+    for (const r of reservas) m.set(f(r), (m.get(f(r)) ?? 0) + 1);
+    return m;
+  };
+  const opcoes: Record<keyof Filtros, OpcaoFiltro[]> = {
+    status: STATUS.map((s) => ({ id: s, nome: COMPROMISSO[s].rotulo, qtd: reservas.filter((r) => r.status_compromisso === s).length, classe: `st-${s}` })),
+    movimento: opcoesCadastro(movimentos, contar(movDe), 'Sem movimento'),
+    paroquia: opcoesCadastro(paroquias, contar(parDe), 'Sem paróquia'),
+  };
+  // Só valem os marcados que ainda estão entre as opções (cadastro desativado sem reserva some do filtro).
+  const ativo = (qual: keyof Filtros) => new Set(opcoes[qual].filter((o) => filtros[qual].has(o.id)).map((o) => o.id));
+  const fStatus = ativo('status');
+  const fMov = ativo('movimento');
+  const fPar = ativo('paroquia');
+  // Sem filtro, passa a mesma lista (o calendário não redesenha à toa).
+  const visiveis =
+    !fStatus.size && !fMov.size && !fPar.size
+      ? reservas
+      : reservas.filter((r) => (!fStatus.size || fStatus.has(r.status_compromisso)) && (!fMov.size || fMov.has(movDe(r))) && (!fPar.size || fPar.has(parDe(r))));
   const anterior = { mes: 'Mês anterior', semana: 'Semana anterior', dia: 'Dia anterior', dias: 'Semana anterior', lista: '' }[visao];
   const proximo = { mes: 'Próximo mês', semana: 'Próxima semana', dia: 'Próximo dia', dias: 'Próxima semana', lista: '' }[visao];
 
@@ -255,7 +229,9 @@ export function Agenda() {
           </div>
         )}
         <span className="sp" />
-        <FiltroStatus escolhidos={filtroStatus} contagem={(s) => reservas.filter((r) => r.status_compromisso === s).length} onMudar={mudarFiltro} />
+        <FiltroMulti rotulo="Status" opcoes={opcoes.status} marcados={filtros.status} bolinha onMudar={(n) => mudarFiltro('status', n)} />
+        <FiltroMulti rotulo="Movimento" opcoes={opcoes.movimento} marcados={filtros.movimento} onMudar={(n) => mudarFiltro('movimento', n)} />
+        <FiltroMulti rotulo="Paróquia" opcoes={opcoes.paroquia} marcados={filtros.paroquia} onMudar={(n) => mudarFiltro('paroquia', n)} />
         <div className="segmentos" role="group" aria-label="Visão da agenda">
           {visoes.map((v) => (
             <button key={v.id} aria-pressed={visao === v.id} onClick={() => trocarVisao(v.id)}>

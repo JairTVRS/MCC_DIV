@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSessao } from '../../auth/Sessao';
 import { mensagemErro } from '../../lib/erros';
 import { supabase } from '../../lib/supabase';
-import type { Parcela, Pessoa, Reserva, StatusCompromisso, StatusPagamento } from '../../lib/tipos';
+import type { ItemCadastro, Parcela, Pessoa, Reserva, StatusCompromisso, StatusPagamento } from '../../lib/tipos';
 import { carregarBase, type Contadores } from '../agenda/base';
 import { COLUNAS_RESERVA, FormReserva, normalizarReserva, type AbaReserva, type UsuarioCurto } from '../agenda/FormReserva';
 import { COMPROMISSO, PAGAMENTO, hojeLocal, reais } from '../agenda/formatos';
@@ -40,7 +40,14 @@ function atalho(qual: 'mes' | 'proximos' | 'ano' | 'tudo'): { de: string; ate: s
   return { de: '', ate: '' };
 }
 
-interface LinhaReserva extends Reserva {
+/** Movimento e paróquia vêm do locatário da reserva (id vazio = locatário sem o campo). */
+interface DoLocatario {
+  movimentoId: string;
+  movimento: string;
+  paroquiaId: string;
+  paroquia: string;
+}
+interface LinhaReserva extends Reserva, DoLocatario {
   locatario: string;
   locador: string;
   responsavel: string;
@@ -51,7 +58,7 @@ interface LinhaReserva extends Reserva {
   comentarios: number;
   prazo: string;
 }
-interface LinhaParcela extends Parcela {
+interface LinhaParcela extends Parcela, DoLocatario {
   reserva: Reserva;
   locatario: string;
   responsavel: string;
@@ -74,6 +81,8 @@ export function Relatorio() {
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioCurto[]>([]);
   const [contadores, setContadores] = useState<Contadores>(new Map());
+  const [movimentos, setMovimentos] = useState<ItemCadastro[]>([]);
+  const [paroquias, setParoquias] = useState<ItemCadastro[]>([]);
   const [aberta, setAberta] = useState<{ reserva: Reserva; aba: AbaReserva } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -95,6 +104,8 @@ export function Relatorio() {
       setPessoas(base.pessoas);
       setUsuarios(base.usuarios);
       setContadores(base.contadores);
+      setMovimentos(base.movimentos);
+      setParoquias(base.paroquias);
       setParcelas(((pa.data ?? []) as Parcela[]).map((p) => ({ ...p, valor: Number(p.valor) })));
       const dev = new Map<string, number>();
       for (const d of (de.data ?? []) as { locacao_id: string; valor_devolvido: number }[]) dev.set(d.locacao_id, (dev.get(d.locacao_id) ?? 0) + Number(d.valor_devolvido));
@@ -114,6 +125,19 @@ export function Relatorio() {
 
   const nomePessoa = useCallback((id: string) => pessoas.find((p) => p.id === id)?.nome ?? '—', [pessoas]);
   const nomeUsuario = useCallback((id: string | null) => (id ? usuarios.find((u) => u.id === id)?.nome ?? '—' : '—'), [usuarios]);
+  const doLocatario = useCallback(
+    (r: Reserva): DoLocatario => {
+      const p = pessoas.find((x) => x.id === r.locatario_id);
+      const nome = (lista: ItemCadastro[], id: string | null | undefined) => (id ? lista.find((c) => c.id === id)?.nome ?? '' : '');
+      return {
+        movimentoId: p?.movimento_id ?? '',
+        movimento: nome(movimentos, p?.movimento_id),
+        paroquiaId: p?.paroquia_id ?? '',
+        paroquia: nome(paroquias, p?.paroquia_id),
+      };
+    },
+    [pessoas, movimentos, paroquias],
+  );
 
   const linhasReserva = useMemo<LinhaReserva[]>(() => {
     if (!reservas) return [];
@@ -125,6 +149,7 @@ export function Relatorio() {
       const cancelada = r.status_compromisso === 'cancelado';
       return {
         ...r,
+        ...doLocatario(r),
         locatario: nomePessoa(r.locatario_id),
         locador: nomePessoa(r.locador_id),
         responsavel: nomeUsuario(r.responsavel_id),
@@ -136,7 +161,7 @@ export function Relatorio() {
         prazo: r.prazo_id ? prazos.get(r.prazo_id) ?? '' : '',
       };
     });
-  }, [reservas, parcelas, devolvido, contadores, prazos, nomePessoa, nomeUsuario]);
+  }, [reservas, parcelas, devolvido, contadores, prazos, nomePessoa, nomeUsuario, doLocatario]);
 
   const linhasParcela = useMemo<LinhaParcela[]>(() => {
     if (!reservas) return [];
@@ -150,6 +175,7 @@ export function Relatorio() {
       const atraso = situacao === 'vencida' ? Math.round((new Date(`${hoje}T12:00:00`).getTime() - new Date(`${p.vencimento}T12:00:00`).getTime()) / 86400000) : 0;
       lista.push({
         ...p,
+        ...doLocatario(r),
         reserva: r,
         locatario: nomePessoa(r.locatario_id),
         responsavel: nomeUsuario(r.responsavel_id),
@@ -159,7 +185,7 @@ export function Relatorio() {
       });
     }
     return lista;
-  }, [reservas, parcelas, formas, nomePessoa, nomeUsuario]);
+  }, [reservas, parcelas, formas, nomePessoa, nomeUsuario, doLocatario]);
 
   if (!reservas) return <p className="note">Carregando…</p>;
 
@@ -181,9 +207,9 @@ export function Relatorio() {
         </p>
       )}
       {aba === 'reservas' || !vePagamento ? (
-        <RelReservas linhas={linhasReserva} usuarios={usuarios} vePagamento={vePagamento} podeExportar={podeExportar} onAbrir={(r) => setAberta({ reserva: r, aba: 'dados' })} />
+        <RelReservas linhas={linhasReserva} usuarios={usuarios} movimentos={movimentos} paroquias={paroquias} vePagamento={vePagamento} podeExportar={podeExportar} onAbrir={(r) => setAberta({ reserva: r, aba: 'dados' })} />
       ) : (
-        <RelParcelas linhas={linhasParcela} formas={formas} podeExportar={podeExportar} onAbrir={(p) => setAberta({ reserva: p.reserva, aba: 'pagamento' })} />
+        <RelParcelas linhas={linhasParcela} formas={formas} movimentos={movimentos} paroquias={paroquias} podeExportar={podeExportar} onAbrir={(p) => setAberta({ reserva: p.reserva, aba: 'pagamento' })} />
       )}
       {aberta && (
         <FormReserva
@@ -250,15 +276,41 @@ function Marcar<T extends string>({ opcoes, rotulo, marcados, onMudar, rotuloDe 
   );
 }
 
+/** Seletor de movimento ou paróquia (do locatário): Todos, os cadastrados e "Sem …". */
+function FiltroCadastro({ rotulo, itens, valor, onMudar, sem }: { rotulo: string; itens: ItemCadastro[]; valor: string; onMudar: (v: string) => void; sem: string }) {
+  return (
+    <label className="campo">
+      <span className="rot">{rotulo}</span>
+      <select className="inp" value={valor} onChange={(e) => onMudar(e.target.value)}>
+        <option value="">Todos</option>
+        {itens.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.nome}
+            {c.ativo ? '' : ' (inativo)'}
+          </option>
+        ))}
+        <option value="-">{sem}</option>
+      </select>
+    </label>
+  );
+}
+
+/** Filtro de movimento/paróquia: '' = todos, '-' = locatário sem o campo. */
+const confere = (filtro: string, id: string) => !filtro || (filtro === '-' ? !id : id === filtro);
+
 function RelReservas({
   linhas,
   usuarios,
+  movimentos,
+  paroquias,
   vePagamento,
   podeExportar,
   onAbrir,
 }: {
   linhas: LinhaReserva[];
   usuarios: UsuarioCurto[];
+  movimentos: ItemCadastro[];
+  paroquias: ItemCadastro[];
   vePagamento: boolean;
   podeExportar: boolean;
   onAbrir: (r: Reserva) => void;
@@ -267,6 +319,8 @@ function RelReservas({
   const [status, setStatus] = useState<StatusCompromisso[]>([]);
   const [pagamento, setPagamento] = useState<StatusPagamento[]>([]);
   const [responsavel, setResponsavel] = useState('');
+  const [movimento, setMovimento] = useState('');
+  const [paroquia, setParoquia] = useState('');
   const [busca, setBusca] = useState('');
 
   const termo = semAcento(busca.trim());
@@ -278,6 +332,8 @@ function RelReservas({
       (!status.length || status.includes(r.status_compromisso)) &&
       (!pagamento.length || pagamento.includes(r.status_pagamento)) &&
       (!responsavel || r.responsavel_id === responsavel) &&
+      confere(movimento, r.movimentoId) &&
+      confere(paroquia, r.paroquiaId) &&
       (!termo || semAcento(`${r.locatario} ${r.locador} ${r.observacoes ?? ''}`).includes(termo))
     );
   });
@@ -287,6 +343,8 @@ function RelReservas({
     { id: 'fim', titulo: 'Fim', valor: (r) => r.fim, mostrar: (r) => dataHoraBr(r.fim), csv: (r) => dataHoraBr(r.fim) },
     { id: 'locatario', titulo: 'Locatário', valor: (r) => r.locatario, padrao: true },
     { id: 'locador', titulo: 'Locador', valor: (r) => r.locador },
+    { id: 'movimento', titulo: 'Movimento', valor: (r) => r.movimento },
+    { id: 'paroquia', titulo: 'Paróquia', valor: (r) => r.paroquia },
     { id: 'responsavel', titulo: 'Responsável', valor: (r) => r.responsavel, padrao: true },
     {
       id: 'status',
@@ -342,6 +400,8 @@ function RelReservas({
               ))}
             </select>
           </label>
+          <FiltroCadastro rotulo="Movimento" itens={movimentos} valor={movimento} onMudar={setMovimento} sem="Sem movimento" />
+          <FiltroCadastro rotulo="Paróquia" itens={paroquias} valor={paroquia} onMudar={setParoquia} sem="Sem paróquia" />
           <label className="campo rel-busca">
             <span className="rot">Buscar</span>
             <input className="inp" type="search" value={busca} placeholder="Locatário, locador ou observação" onChange={(e) => setBusca(e.target.value)} />
@@ -365,11 +425,15 @@ function RelReservas({
 function RelParcelas({
   linhas,
   formas,
+  movimentos,
+  paroquias,
   podeExportar,
   onAbrir,
 }: {
   linhas: LinhaParcela[];
   formas: Map<string, string>;
+  movimentos: ItemCadastro[];
+  paroquias: ItemCadastro[];
   podeExportar: boolean;
   onAbrir: (p: LinhaParcela) => void;
 }) {
@@ -377,6 +441,8 @@ function RelParcelas({
   const [periodo, setPeriodo] = useState(() => atalho('mes'));
   const [situacoes, setSituacoes] = useState<Situacao[]>([]);
   const [forma, setForma] = useState('');
+  const [movimento, setMovimento] = useState('');
+  const [paroquia, setParoquia] = useState('');
   const [busca, setBusca] = useState('');
 
   const termo = semAcento(busca.trim());
@@ -387,6 +453,8 @@ function RelParcelas({
       (!periodo.ate || (dia && dia <= periodo.ate)) &&
       (!situacoes.length || situacoes.includes(p.situacao)) &&
       (!forma || p.forma_pagamento_id === forma) &&
+      confere(movimento, p.movimentoId) &&
+      confere(paroquia, p.paroquiaId) &&
       (!termo || semAcento(p.locatario).includes(termo))
     );
   });
@@ -412,6 +480,8 @@ function RelParcelas({
     { id: 'comprovante', titulo: 'Comprovante', valor: (p) => (p.comprovante_id ? 'Sim' : p.paga ? 'Não' : '') },
     { id: 'status', titulo: 'Status da reserva', valor: (p) => COMPROMISSO[p.reserva.status_compromisso].rotulo },
     { id: 'responsavel', titulo: 'Responsável', valor: (p) => p.responsavel },
+    { id: 'movimento', titulo: 'Movimento', valor: (p) => p.movimento },
+    { id: 'paroquia', titulo: 'Paróquia', valor: (p) => p.paroquia },
   ];
 
   return (
@@ -458,6 +528,8 @@ function RelParcelas({
               ))}
             </select>
           </label>
+          <FiltroCadastro rotulo="Movimento" itens={movimentos} valor={movimento} onMudar={setMovimento} sem="Sem movimento" />
+          <FiltroCadastro rotulo="Paróquia" itens={paroquias} valor={paroquia} onMudar={setParoquia} sem="Sem paróquia" />
           <label className="campo rel-busca">
             <span className="rot">Buscar</span>
             <input className="inp" type="search" value={busca} placeholder="Locatário" onChange={(e) => setBusca(e.target.value)} />
