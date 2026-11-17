@@ -490,7 +490,9 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 .tabela-plano td { padding: 2px 4px; }
 .tabela-plano td:nth-child(2) { width: 190px; }
 .plano-n { width: 92px; font-weight: 600; font-size: 13px; white-space: nowrap; }
-.plano-n span { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }
+.plano-n span { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); white-space: normal; line-height: 1.25; }
+.aviso-lista { margin: 6px 0 0; padding-left: 18px; }
+.aviso-lista li { margin: 2px 0; }
 .tabela-plano .inp[readonly] { background: var(--surface2); color: var(--muted); cursor: default; }
 .pg-prazo { font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 8px; }
 .plano-soma { margin-left: 0; font-size: 13.5px; }
@@ -498,6 +500,9 @@ label.btn.desab { opacity: 0.5; pointer-events: none; }
 .tabela-plano th, .tabela-prazo th { text-align: left; font-size: 11.5px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); padding: 4px 6px; }
 .tabela-plano td, .tabela-prazo td { padding: 4px 6px; vertical-align: middle; }
 .tabela-prazo td:first-child { width: 36px; color: var(--muted); font-weight: 600; }
+/* Dias e % estreitos: a coluna "Contar" fica com o resto e mostra o texto inteiro. */
+.tabela-prazo td:nth-child(3), .tabela-prazo td:nth-child(4) { width: 96px; }
+.tabela-prazo td:last-child { width: 40px; }
 .nome-prazo { min-height: 40px; display: flex; align-items: center; padding: 8px 12px; border-radius: 8px; background: var(--surface2); border: 1px dashed var(--line); font-weight: 600; }
 .nome-prazo.vazio { color: var(--muted); font-weight: 400; }
 .inp.invalido { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger) inset; }

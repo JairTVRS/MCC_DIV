@@ -11,6 +11,7 @@ Web app para gerenciar as locações da casa de eventos: agenda contínua, reser
 
 | Versão | Data | Descrição |
 |---|---|---|
+| v1.2.0 | 16/11/2026 | Prazo de pagamento com parcelas "antes do evento" (ex.: 30% entrada + 70% 15 dias antes do evento), vencimento nunca antes da data base (com aviso no plano); arrastar ou mudar a data da reserva move junto os vencimentos "antes do evento" em aberto, com aviso antes de gravar; nome dos prazos troca "antecipado" por "entrada" |
 | v1.1.1 | 16/11/2026 | Formulário da pessoa mais largo (até 1200px) e centralizado na área da página, sem contar o menu lateral: o cadastro rápido de Movimento e Paróquia fica com espaço para digitar |
 | v1.1.0 | 16/11/2026 | Movimento e Paróquia na pessoa (obrigatórios em cadastro novo, com cadastro rápido no próprio seletor), Configurações > Movimentos e Paróquias, filtros de Movimento e Paróquia na Agenda (do locatário) e colunas e filtros no Relatório |
 | v1.0.0 | 15/11/2026 | Etapas 9, 10 e 11: Lista / Relatório (reservas e parcelas com filtros, totais, colunas à escolha e CSV), histórico geral na engrenagem com filtros, relógio de histórico no usuário, no grupo e na pessoa, pessoas inativadas em vez de excluídas, lixeira com busca, pontinho de novidade na versão, testes de permissão por grupo |

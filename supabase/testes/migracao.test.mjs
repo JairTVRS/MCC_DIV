@@ -292,9 +292,9 @@ e=await erro(()=>as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim) 
 ok(!!e&&/locatário está inativo/.test(e),'pessoa inativa não entra em reserva nova');
 
 console.log('15. Pagamento: prazos, plano, reservado automático e devolução (v0.7.0)');
-ok((await as(A,`select nome from prazos_pagamento order by ordem`)).map(p=>p.nome).join('|')==='À vista|30 dias|50% antecipado + 30/60/90|30/45/60','prazos iniciais com o nome gerado das parcelas');
+ok((await as(A,`select nome from prazos_pagamento order by ordem`)).map(p=>p.nome).join('|')==='À vista|30 dias|50% entrada + 30/60/90|30/45/60','prazos iniciais com o nome gerado das parcelas ("entrada" desde a v1.2.0)');
 const [pzA]=await as(A,`insert into prazos_pagamento(nome,parcelas) values('Nome digitado errado','[{"dias":0,"percentual":30},{"dias":30,"percentual":23.33},{"dias":60,"percentual":23.33},{"dias":90,"percentual":23.34}]') returning nome`);
-ok(pzA.nome==='30% antecipado + 30/60/90','nome é o espelho das parcelas (o digitado é ignorado)');
+ok(pzA.nome==='30% entrada + 30/60/90','nome é o espelho das parcelas (o digitado é ignorado)');
 const [pzB]=await as(A,`insert into prazos_pagamento(nome,parcelas) values('x','[{"dias":30,"percentual":40},{"dias":60,"percentual":60}]') returning nome`);
 ok(pzB.nome==='30 dias 40% / 60 dias 60%','partes diferentes: o nome mostra o % de cada uma');
 ok(!!await erro(()=>as(A,`insert into prazos_pagamento(nome,parcelas) values('outro','[{"dias":30,"percentual":40},{"dias":60,"percentual":60}]')`)),'prazo igual a um já cadastrado é recusado');
@@ -529,6 +529,53 @@ ok((await su(`select movimento_id from pessoas where id=$1`,[pi.id]))[0].movimen
 hg=await as(A,`select * from historico(p_busca=>'MCC', p_limite=>50)`);
 ok(hg.some(h=>h.tabela==='movimentos'&&h.registro==='MCC'),'histórico geral mostra o nome do movimento');
 ok((await su(`select numero from versoes_app where numero='v1.1.0'`)).length===1,'novidades da v1.1.0 registradas');
+
+console.log('19. v1.2.0: prazo com parcelas antes do evento');
+const novoPrazo=async(parc)=>(await as(A,`insert into prazos_pagamento(nome,parcelas) values('x',$1) returning id, nome, parcelas`,[JSON.stringify(parc)]))[0];
+const pzEv=await novoPrazo([{dias:0,percentual:30},{dias:15,percentual:70,ref:'evento'}]);
+ok(pzEv.nome==='30% entrada + 70% 15 dias antes do evento','nome: entrada + parte antes do evento');
+ok((await novoPrazo([{dias:15,percentual:100,ref:'evento'}])).nome==='15 dias antes do evento','nome: 100% antes do evento');
+ok((await novoPrazo([{dias:0,percentual:100,ref:'evento'}])).nome==='No dia do evento','nome: no dia do evento');
+ok((await novoPrazo([{dias:0,percentual:20},{dias:30,percentual:30},{dias:7,percentual:50,ref:'evento'}])).nome==='20% entrada + 30 dias 30% + 50% 7 dias antes do evento','nome: com parte após a pré-reserva, cada uma mostra o %');
+ok((await novoPrazo([{dias:30,percentual:50,ref:'evento'},{dias:15,percentual:50,ref:'evento'}])).nome==='50% 30 dias antes do evento + 50% 15 dias antes do evento','nome: duas partes antes do evento');
+ok(!!await erro(()=>novoPrazo([{dias:15,percentual:50,ref:'evento'},{dias:30,percentual:50}])),'parcela após a pré-reserva depois de uma antes do evento é recusada');
+ok(!!await erro(()=>novoPrazo([{dias:15,percentual:50,ref:'evento'},{dias:30,percentual:50,ref:'evento'}])),'dias antes do evento crescentes são recusados');
+ok(!!await erro(()=>novoPrazo([{dias:15,percentual:100,ref:'outro'}])),'"ref" inválido é recusado');
+ok((await su(`select bool_and(p ? 'ref') ok from prazos_pagamento, jsonb_array_elements(parcelas) p`))[0].ok===true,'prazos antigos ganham "ref" em todas as parcelas');
+
+const [rEv]=await as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim,valor_total) values($1,$2,'2028-03-20 00:00-03','2028-03-20 23:59-03',1000) returning id`,[pa.id,lr.id]);
+await as(A,`update locacoes set status_compromisso='pre_reserva' where id='${rEv.id}'`);
+await as(A,`select salvar_parcelas('${rEv.id}','${pzEv.id}','[{"valor":300,"vencimento":"2026-11-16","tipo":"entrada"},{"valor":700,"vencimento":"2028-03-05"}]')`);
+let pev=await su(`select numero, vencimento::text v, dias_antes_evento d from parcelas where locacao_id=$1 and not excluido order by numero`,[rEv.id]);
+ok(pev.length===2&&pev[0].d===null&&pev[1].d===15,'plano guarda os dias antes do evento só na parcela que conta do evento');
+await as(A,`update locacoes set inicio='2028-04-10 00:00-03', fim='2028-04-10 23:59-03' where id='${rEv.id}'`);
+pev=await su(`select numero, vencimento::text v from parcelas where locacao_id=$1 and not excluido order by numero`,[rEv.id]);
+ok(pev[0].v==='2026-11-16'&&pev[1].v==='2028-03-26','evento mudou de dia: a parcela antes do evento acompanha (10/04 - 15 dias) e a entrada não muda');
+await as(A,`update locacoes set inicio='2028-04-10 08:00-03' where id='${rEv.id}'`);
+ok((await su(`select vencimento::text v from parcelas where locacao_id=$1 and numero=2 and not excluido`,[rEv.id]))[0].v==='2028-03-26','só a hora mudou: vencimento fica igual');
+const baseEv=(await su(`select (pre_reserva_em at time zone 'America/Sao_Paulo')::date::text d from locacoes where id=$1`,[rEv.id]))[0].d;
+// Volta para Cadastrado (a data da pré-reserva fica) só para não bater com reservas de outros testes perto de hoje.
+await as(A,`update locacoes set status_compromisso='cadastrado' where id='${rEv.id}'`);
+await as(A,`update locacoes set inicio=($1::date + 5)::timestamp at time zone 'America/Sao_Paulo', fim=($1::date + 5)::timestamp at time zone 'America/Sao_Paulo' + interval '23 hours' where id='${rEv.id}'`,[baseEv]);
+ok((await su(`select vencimento::text v from parcelas where locacao_id=$1 and dias_antes_evento=15 and not excluido`,[rEv.id]))[0].v===baseEv,'evento perto demais: o vencimento não fica antes da data da pré-reserva');
+await as(A,`update locacoes set inicio='2028-05-10 00:00-03', fim='2028-05-10 23:59-03' where id='${rEv.id}'`);
+ok((await su(`select vencimento::text v from parcelas where locacao_id=$1 and dias_antes_evento=15 and not excluido`,[rEv.id]))[0].v==='2028-04-25','evento volta para longe: o vencimento volta a ser 15 dias antes');
+await as(A,`update parcelas set paga=true, pago_em=now() where locacao_id='${rEv.id}' and dias_antes_evento=15 and not excluido`);
+const vPaga=(await su(`select vencimento::text v from parcelas where locacao_id=$1 and dias_antes_evento=15 and not excluido`,[rEv.id]))[0].v;
+await as(A,`update locacoes set inicio='2028-06-10 00:00-03', fim='2028-06-10 23:59-03' where id='${rEv.id}'`);
+ok((await su(`select vencimento::text v from parcelas where locacao_id=$1 and dias_antes_evento=15 and not excluido`,[rEv.id]))[0].v===vPaga,'parcela já paga não muda de vencimento');
+// Caso do teste do Jair: a parte "antes do evento" vence antes da parte "após a pré-reserva" e vira a 1ª.
+const pzInv=await novoPrazo([{dias:900,percentual:50},{dias:2,percentual:50,ref:'evento'}]);
+const [rInv]=await as(A,`insert into locacoes(locatario_id,locador_id,inicio,fim,valor_total) values($1,$2,'2028-07-20 00:00-03','2028-07-20 23:59-03',1400) returning id`,[pa.id,lr.id]);
+await as(A,`update locacoes set status_compromisso='pre_reserva' where id='${rInv.id}'`);
+await as(A,`select salvar_parcelas('${rInv.id}','${pzInv.id}','[{"valor":700,"vencimento":"2029-05-05"},{"valor":700,"vencimento":"2028-07-18"}]')`);
+let pinv=await su(`select numero, vencimento::text v, dias_antes_evento d from parcelas where locacao_id=$1 and not excluido order by numero`,[rInv.id]);
+ok(pinv[0].v==='2028-07-18'&&pinv[0].d===2&&pinv[1].d===null,'a parcela antes do evento vira a 1ª (vence antes) e continua marcada como do evento');
+await as(A,`update parcelas set paga=true, pago_em=now() where locacao_id='${rInv.id}' and numero=1 and not excluido`);
+await as(A,`select salvar_parcelas('${rInv.id}','${pzInv.id}','[{"valor":700,"vencimento":"2029-06-01"}]')`);
+pinv=await su(`select vencimento::text v, dias_antes_evento d from parcelas where locacao_id=$1 and not paga and not excluido`,[rInv.id]);
+ok(pinv.length===1&&pinv[0].d===null,'paga a do evento, o plano refeito deixa a que falta como "após a pré-reserva" (casa pelo tipo, não pela posição)');
+ok((await su(`select numero from versoes_app where numero='v1.2.0'`)).length===1,'novidades da v1.2.0 registradas');
 
 console.log(falhas?`\n${falhas} FALHA(S)`:'\nTODOS OS TESTES PASSARAM');
 process.exit(falhas?1:0);

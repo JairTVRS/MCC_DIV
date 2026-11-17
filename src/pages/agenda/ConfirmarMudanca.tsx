@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
+import { vencimentosQueMudam, type VencimentoQueMuda } from '../../lib/prazos';
 import { supabase } from '../../lib/supabase';
 import type { Mudanca } from './Calendario';
-import { COMPROMISSO, periodoTexto } from './formatos';
+import { AvisoVencimentos } from './AvisoVencimentos';
+import { COMPROMISSO, dataLocal, periodoTexto } from './formatos';
 
 interface Props {
   mudanca: Mudanca;
@@ -11,13 +13,27 @@ interface Props {
   onConcluir: (gravou: boolean) => void;
 }
 
-/** Pergunta antes de gravar a mudança feita arrastando/esticando; confere conflito e grava. */
+/**
+ * Pergunta antes de gravar a mudança feita arrastando/esticando; confere conflito e grava.
+ * Se o dia do evento mudar, avisa quais vencimentos "antes do evento" o banco vai mover junto.
+ */
 export function ConfirmarMudanca({ mudanca, nomeLocatario, onConcluir }: Props) {
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [vencimentos, setVencimentos] = useState<VencimentoQueMuda[]>([]);
   const { reserva, inicio, fim, tipo } = mudanca;
   const novoInicio = inicio.toISOString();
   const novoFim = fim.toISOString();
+  const novoDia = dataLocal(novoInicio);
+
+  useEffect(() => {
+    if (novoDia === dataLocal(reserva.inicio) || reserva.status_compromisso === 'cancelado') return;
+    let vivo = true;
+    void vencimentosQueMudam(reserva, novoDia).then((v) => vivo && setVencimentos(v));
+    return () => {
+      vivo = false;
+    };
+  }, [reserva, novoDia]);
 
   function cancelar() {
     mudanca.desfazer();
@@ -61,6 +77,7 @@ export function ConfirmarMudanca({ mudanca, nomeLocatario, onConcluir }: Props) 
             <span className="note">Antes: {periodoTexto(reserva.inicio, reserva.fim)}</span>
             <strong>{periodoTexto(novoInicio, novoFim)}</strong>
           </p>
+          <AvisoVencimentos vencimentos={vencimentos} />
           {erro && (
             <p className="msg-erro" role="alert">
               {erro}

@@ -4,19 +4,13 @@ import { useSessao } from '../../auth/Sessao';
 import { abrirComprovante, enviarComprovante, validarComprovante } from '../../lib/comprovantes';
 import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
+import { partesRestantes, refDe, rotuloDias, vencimentoPrazo } from '../../lib/prazos';
 import { supabase } from '../../lib/supabase';
-import type { Devolucao, FormaPagamento, Parcela, PrazoPagamento, Reserva } from '../../lib/tipos';
+import type { Devolucao, FormaPagamento, Parcela, ParcelaPrazo, PrazoPagamento, RefPrazo, Reserva } from '../../lib/tipos';
 import { dataLocal, escreverReais, hojeLocal, lerReais, reais } from './formatos';
 
 const dataBr = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('pt-BR');
 const num = (v: unknown) => Number(v) || 0;
-
-/** Soma dias a uma data AAAA-MM-DD (calendário local). */
-function somarDias(data: string, dias: number): string {
-  const [a, m, d] = data.split('-').map(Number);
-  const r = new Date(a, m - 1, d + dias);
-  return `${r.getFullYear()}-${String(r.getMonth() + 1).padStart(2, '0')}-${String(r.getDate()).padStart(2, '0')}`;
-}
 
 /**
  * Janelas da aba Pagamento abrem por cima de tudo (no body): dentro do card da reserva, que é
@@ -116,7 +110,7 @@ export function AbaPagamento({ reserva, onMudou }: { reserva: Reserva; onMudou: 
 
   const carregar = useCallback(async () => {
     const [p, d, f, z] = await Promise.all([
-      supabase.from('parcelas').select('id, locacao_id, numero, tipo, valor, vencimento, forma_pagamento_id, paga, pago_em, comprovante_id, encerrada').eq('locacao_id', reserva.id).eq('excluido', false).order('numero'),
+      supabase.from('parcelas').select('id, locacao_id, numero, tipo, valor, vencimento, forma_pagamento_id, paga, pago_em, comprovante_id, encerrada, dias_antes_evento').eq('locacao_id', reserva.id).eq('excluido', false).order('numero'),
       supabase.from('devolucoes').select('id, locacao_id, valor_devolvido, valor_retido, data, forma_pagamento_id, motivo, comprovante_id, registrado_em').eq('locacao_id', reserva.id).order('registrado_em'),
       supabase.from('formas_pagamento').select('id, nome, ativo, ordem').order('ordem').order('nome'),
       supabase.from('prazos_pagamento').select('id, nome, parcelas, ativo, ordem').order('ordem').order('nome'),
@@ -350,6 +344,10 @@ interface LinhaPlano {
   forma: string;
   tipo: 'entrada' | 'parcela';
   dias: number;
+  /** De onde contam os dias: após a data base ou antes do evento. */
+  ref: RefPrazo;
+  /** "Antes do evento" que cairia antes da data base: ficou na data base. */
+  ajustada: boolean;
 }
 
 function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: PrazoPagamento[]; formas: FormaPagamento[]; onFechar: () => void; onSalvo: () => void }) {
@@ -362,12 +360,13 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
   const prazoInicial = opcoes.find((p) => p.id === reserva.prazo_id) ?? opcoes[0];
   const [prazoId, setPrazoId] = useState(prazoInicial?.id ?? '');
   const [base, setBase] = useState(reserva.pre_reserva_em ? dataLocal(reserva.pre_reserva_em) : hojeLocal());
+  const dataEvento = dataLocal(reserva.inicio);
   const [formaPadrao, setFormaPadrao] = useState(abertas[0]?.forma_pagamento_id ?? formas[0]?.id ?? '');
   const [linhas, setLinhas] = useState<LinhaPlano[]>(() => {
-    const partes = prazoInicial ? prazoInicial.parcelas.slice(pagas.length) : [];
     // Plano já salvo com este prazo: abre com as parcelas em aberto como estão.
-    if (prazoInicial && reserva.prazo_id === prazoInicial.id && abertas.length === partes.length && abertas.length > 0) {
-      return abertas.map((p, i) => ({ id: p.id, valor: escreverReais(p.valor), vencimento: p.vencimento, forma: p.forma_pagamento_id ?? '', tipo: p.tipo, dias: partes[i].dias }));
+    if (prazoInicial && reserva.prazo_id === prazoInicial.id) {
+      const salvas = casarSalvas(partesRestantes(prazoInicial.parcelas, pagas));
+      if (salvas) return salvas;
     }
     return gerar(prazoInicial, base, formaPadrao);
   });
@@ -377,23 +376,45 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
   const prazo = opcoes.find((p) => p.id === prazoId);
   const restantes = prazo ? prazo.parcelas.length - pagas.length : 0;
 
+  /**
+   * Põe as parcelas em aberto na ordem do prazo, casando pelo tipo: as que contam do evento com as
+   * partes "antes do evento", as outras com as partes após a pré-reserva (cada grupo por vencimento).
+   * Assim a "2 dias antes do evento" que vence antes da "30 dias" não troca de lugar com ela.
+   */
+  function casarSalvas(partes: ParcelaPrazo[]): LinhaPlano[] | null {
+    if (partes.length === 0 || abertas.length !== partes.length) return null;
+    const porVencimento = (a: Parcela, b: Parcela) => a.vencimento.localeCompare(b.vencimento) || a.numero - b.numero;
+    const doEvento = abertas.filter((p) => p.dias_antes_evento != null).sort(porVencimento);
+    const outras = abertas.filter((p) => p.dias_antes_evento == null).sort(porVencimento);
+    const linhasSalvas: LinhaPlano[] = [];
+    for (const x of partes) {
+      const ref = refDe(x);
+      const p = (ref === 'evento' ? doEvento : outras).shift();
+      if (!p) return null;
+      linhasSalvas.push({ id: p.id, valor: escreverReais(p.valor), vencimento: p.vencimento, forma: p.forma_pagamento_id ?? '', tipo: p.tipo, dias: x.dias, ref, ajustada: false });
+    }
+    return linhasSalvas;
+  }
+
   // Parcelas do prazo que ainda faltam pagar; o valor a parcelar é repartido pelos % delas.
   function gerar(p: PrazoPagamento | undefined, dataBase: string, forma: string): LinhaPlano[] {
     if (!p || aParcelar <= 0) return [];
-    const partes = p.parcelas.slice(pagas.length);
+    const partes = partesRestantes(p.parcelas, pagas);
     const somaPct = partes.reduce((s, x) => s + x.percentual, 0);
     let usado = 0;
     return partes.map((x, i) => {
       const ultima = i === partes.length - 1;
       const valor = ultima ? Math.round((aParcelar - usado) * 100) / 100 : Math.floor(((aParcelar * x.percentual) / somaPct) * 100) / 100;
       usado += valor;
+      const ref = refDe(x);
       return {
         id: abertas[i]?.id ?? null,
         valor: escreverReais(valor),
-        vencimento: somarDias(dataBase, x.dias),
+        ...vencimentoPrazo(x.dias, ref, dataBase, dataEvento),
         forma,
-        tipo: x.dias === 0 && pagas.length + i === 0 ? 'entrada' : 'parcela',
+        tipo: x.dias === 0 && ref === 'reserva' && pagas.length + i === 0 ? 'entrada' : 'parcela',
         dias: x.dias,
+        ref,
       };
     });
   }
@@ -404,7 +425,7 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
   }
   function trocarBase(d: string) {
     setBase(d);
-    if (d) setLinhas((ls) => ls.map((l) => ({ ...l, vencimento: somarDias(d, l.dias) })));
+    if (d) setLinhas((ls) => ls.map((l) => ({ ...l, ...vencimentoPrazo(l.dias, l.ref, d, dataEvento) })));
   }
   function trocarForma(f: string) {
     setFormaPadrao(f);
@@ -424,8 +445,10 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
     });
   }
   function mudar(i: number, campo: 'vencimento' | 'forma', valor: string) {
-    setLinhas((ls) => ls.map((l, k) => (k === i ? { ...l, [campo]: valor } : l)));
+    setLinhas((ls) => ls.map((l, k) => (k === i ? { ...l, [campo]: valor, ajustada: campo === 'vencimento' ? false : l.ajustada } : l)));
   }
+  const temEvento = linhas.some((l) => l.ref === 'evento');
+  const ajustadas = linhas.filter((l) => l.ajustada);
 
   const soma = Math.round(linhas.reduce((s, l) => s + lerReais(l.valor), 0) * 100) / 100;
   const algumZero = linhas.some((l) => lerReais(l.valor) <= 0);
@@ -503,6 +526,7 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
               {reserva.pre_reserva_em
                 ? `Data base = dia em que a reserva entrou em Pré-reserva (${new Date(reserva.pre_reserva_em).toLocaleDateString('pt-BR')}); os dias do prazo contam a partir dela.`
                 : 'A reserva ainda não é Pré-reserva: a data base começa em hoje. Os dias do prazo contam a partir dela.'}
+              {temEvento && ` Parcelas "antes do evento" contam do início do evento (${dataBr(dataEvento)}) e acompanham se a data da reserva mudar.`}
             </p>
           </div>
 
@@ -529,7 +553,7 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
                     <tr key={i}>
                       <td className="plano-n">
                         {l.tipo === 'entrada' ? 'Entrada' : `${pagas.length + i + 1}ª`}
-                        <span>{l.dias === 0 ? 'na hora' : `${l.dias} dias`}</span>
+                        <span>{rotuloDias(l.dias, l.ref)}</span>
                       </td>
                       <td>
                         <input className="inp" type="date" value={l.vencimento} aria-label={`Vencimento da parcela ${i + 1}`} onChange={(e) => mudar(i, 'vencimento', e.target.value)} />
@@ -563,6 +587,12 @@ function EditorPlano(props: { reserva: Reserva; parcelas: Parcela[]; prazos: Pra
             </table>
           )}
           {linhas.length > 1 && <p className="note">A última parcela é calculada sozinha para fechar o total.</p>}
+          {ajustadas.length > 0 && (
+            <p className="aviso">
+              {ajustadas.map((l) => rotuloDias(l.dias, l.ref)).join(', ')}: essa data fica antes da data base ({dataBr(base)}), então o vencimento ficou na data base.
+              Confira ou ajuste à mão.
+            </p>
+          )}
           {(problema || erro) && (
             <p className="msg-erro" role="alert">
               {erro ?? problema}

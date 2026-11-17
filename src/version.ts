@@ -1,2 +1,2 @@
 // Versão da aplicação. Toda mensagem de commit começa por ela (ex.: v0.2.0 - Descrição).
-export const APP_VERSION = 'v1.1.1';
+export const APP_VERSION = 'v1.2.0';

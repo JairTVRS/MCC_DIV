@@ -112,11 +112,20 @@ export interface Reserva {
   alterado_em: string | null;
 }
 
-/** Prazo de pagamento cadastrado: parcelas em dias (a partir da pré-reserva) e % do valor. */
+/** De onde contam os dias da parcela do prazo: após a pré-reserva ou antes do início do evento. */
+export type RefPrazo = 'reserva' | 'evento';
+export interface ParcelaPrazo {
+  dias: number;
+  percentual: number;
+  /** Sem o campo = 'reserva' (prazos antigos). */
+  ref?: RefPrazo;
+}
+
+/** Prazo de pagamento cadastrado: parcelas em dias (após a pré-reserva ou antes do evento) e % do valor. */
 export interface PrazoPagamento {
   id: string;
   nome: string;
-  parcelas: { dias: number; percentual: number }[];
+  parcelas: ParcelaPrazo[];
   ativo: boolean;
   ordem: number;
 }
@@ -133,6 +142,8 @@ export interface Parcela {
   pago_em: string | null;
   comprovante_id: string | null;
   encerrada: boolean;
+  /** Parcela que conta do evento: dias antes do início (acompanha se a data da reserva mudar). */
+  dias_antes_evento: number | null;
 }
 
 export interface Devolucao {

@@ -2,12 +2,14 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useSessao } from '../../auth/Sessao';
 import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
+import { vencimentosQueMudam, type VencimentoQueMuda } from '../../lib/prazos';
 import { supabase } from '../../lib/supabase';
 import type { FormaPagamento, Pessoa, Reserva, StatusCompromisso } from '../../lib/tipos';
 import { FormPessoa } from '../pessoas/FormPessoa';
 import { AbaAnexos } from './AbaAnexos';
 import { AbaComentarios } from './AbaComentarios';
 import { AbaPagamento, RegistrarDevolucao, valorFinal } from './AbaPagamento';
+import { AvisoVencimentos } from './AvisoVencimentos';
 import { Historico } from './Historico';
 import { SeletorPessoa } from './SeletorPessoa';
 import { COMPROMISSO, PAGAMENTO, dataLocal, escreverReais, hojeLocal, horaLocal, lerReais, paraIso, reais } from './formatos';
@@ -86,6 +88,17 @@ export function FormReserva({ reserva, diaInicial, pessoas, usuarios, onPessoaNo
 
   const vePagamento = tem('pagamentos.visualizar');
   const podeDesconto = tem('pagamentos.desconto');
+
+  // Data de início trocada: avisa quais vencimentos "antes do evento" o banco vai mover ao salvar.
+  const [vencimentos, setVencimentos] = useState<VencimentoQueMuda[]>([]);
+  useEffect(() => {
+    if (!atual || !dataIni || dataIni === dataLocal(atual.inicio) || status === 'cancelado') return setVencimentos([]);
+    let vivo = true;
+    void vencimentosQueMudam(atual, dataIni).then((v) => vivo && setVencimentos(v));
+    return () => {
+      vivo = false;
+    };
+  }, [atual, dataIni, status]);
 
   // Valor já recebido (parcelas pagas menos devolvido), para o resumo do topo e para o cancelamento.
   useEffect(() => {
@@ -298,6 +311,7 @@ export function FormReserva({ reserva, diaInicial, pessoas, usuarios, onPessoaNo
                   </span>
                 </label>
               </div>
+              <AvisoVencimentos vencimentos={vencimentos} />
 
               <label className="campo">
                 <span className="rot">Status do compromisso</span>

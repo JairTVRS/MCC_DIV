@@ -1,38 +1,15 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { mensagemErro } from '../../lib/erros';
 import { Icone } from '../../lib/icones';
+import { fmtPct, nomePrazo, refDe, resumoPrazo } from '../../lib/prazos';
 import { supabase } from '../../lib/supabase';
-import type { PrazoPagamento } from '../../lib/tipos';
+import type { PrazoPagamento, RefPrazo } from '../../lib/tipos';
 
-type Linha = { dias: string; percentual: string };
+type Linha = { dias: string; percentual: string; ref: RefPrazo };
 
-const fmtPct = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 const lerNum = (s: string) => Number(s.replace(',', '.'));
 
-/** "0 · 50% — 30 · 16,67% — …" */
-export function resumoPrazo(p: Pick<PrazoPagamento, 'parcelas'>): string {
-  return p.parcelas.map((x) => `${x.dias === 0 ? 'na hora' : `${x.dias} dias`} · ${fmtPct(x.percentual)}%`).join(' — ');
-}
-
-/**
- * Nome do prazo, espelho das parcelas (mesma regra da função nome_prazo do banco, que é quem grava):
- * "À vista" · "30 dias" · "30/60/90" · "30% antecipado + 30/60/90" · "30 dias 40% / 60 dias 60%".
- */
-export function nomePrazo(parcelas: { dias: number; percentual: number }[]): string {
-  const antecipado = parcelas.filter((p) => p.dias === 0).reduce((s, p) => s + p.percentual, 0);
-  const resto = parcelas.filter((p) => p.dias > 0);
-  if (resto.length === 0) return 'À vista';
-  const pcts = resto.map((p) => p.percentual);
-  const parte =
-    resto.length === 1
-      ? `${resto[0].dias} dias`
-      : Math.max(...pcts) - Math.min(...pcts) <= 0.02
-        ? resto.map((p) => p.dias).join('/')
-        : resto.map((p) => `${p.dias} dias ${fmtPct(p.percentual)}%`).join(' / ');
-  return antecipado > 0 ? `${fmtPct(antecipado)}% antecipado + ${parte}` : parte;
-}
-
-/** Cadastro de prazos de pagamento: nome + parcelas em dias (a partir da pré-reserva) e % do valor. */
+/** Cadastro de prazos de pagamento: parcelas em dias (após a pré-reserva ou antes do evento) e % do valor. */
 export function PrazosPagamento({ podeAlterar }: { podeAlterar: boolean }) {
   const [lista, setLista] = useState<PrazoPagamento[] | null>(null);
   const [editando, setEditando] = useState<PrazoPagamento | 'novo' | null>(null);
@@ -83,7 +60,8 @@ export function PrazosPagamento({ podeAlterar }: { podeAlterar: boolean }) {
         )}
       </div>
       <p className="note">
-        Os dias contam a partir da data em que a reserva entrou em Pré-reserva. Na reserva, as parcelas geradas pelo prazo ainda podem ser ajustadas uma a uma.
+        Cada parcela conta os dias a partir da data em que a reserva entrou em Pré-reserva ou antes do início do evento. Na reserva, as parcelas geradas pelo prazo ainda
+        podem ser ajustadas uma a uma.
       </p>
       {lista.length === 0 ? (
         <p className="vazio">Nenhum prazo cadastrado.</p>
@@ -143,12 +121,15 @@ export function PrazosPagamento({ podeAlterar }: { podeAlterar: boolean }) {
 }
 
 /**
- * Divide 100% entre as parcelas: se a 1ª for antecipada (0 dias), ela fica como está e o resto
- * é dividido entre as outras; senão, tudo é dividido igualmente. Os centavos vão para a última.
+ * Divide 100% entre as parcelas: se a 1ª for entrada (0 dias após a pré-reserva) com um % entre 0 e
+ * 100, ela fica como está e o resto é dividido entre as outras; senão (ex.: entrada com 100%, que
+ * daria 99,99% + 0,01%), tudo é dividido igualmente. Os centavos vão para a última.
  */
 function dividir(linhas: Linha[]): Linha[] {
   if (linhas.length === 0) return linhas;
-  const mantem = linhas.length > 1 && lerNum(linhas[0].dias) === 0 ? Math.min(99.99, Math.max(0, lerNum(linhas[0].percentual) || 0)) : null;
+  const pctEntrada = lerNum(linhas[0].percentual) || 0;
+  const temEntrada = linhas.length > 1 && linhas[0].ref === 'reserva' && lerNum(linhas[0].dias) === 0 && pctEntrada > 0 && pctEntrada < 100;
+  const mantem = temEntrada ? pctEntrada : null;
   const inicio = mantem === null ? 0 : 1;
   const resto = 100 - (mantem ?? 0);
   const n = linhas.length - inicio;
@@ -158,17 +139,32 @@ function dividir(linhas: Linha[]): Linha[] {
   );
 }
 
+/** Próxima parcela ao clicar em "+ Parcela": segue o tipo da última (30 dias depois, ou 15 dias mais perto do evento). */
+function proxima(ls: Linha[]): Linha {
+  const ult = ls[ls.length - 1];
+  const d = lerNum(ult?.dias ?? '') || 0;
+  if (ult?.ref === 'evento') return { dias: String(Math.max(0, d - 15)), percentual: '', ref: 'evento' };
+  return { dias: String(d + 30), percentual: '', ref: 'reserva' };
+}
+
 function EditorPrazo(props: { prazo: PrazoPagamento | null; outros: string[]; proximaOrdem: number; onFechar: () => void; onSalvo: () => void }) {
   const { prazo, outros, proximaOrdem, onFechar, onSalvo } = props;
   const [linhas, setLinhas] = useState<Linha[]>(
-    prazo ? prazo.parcelas.map((p) => ({ dias: String(p.dias), percentual: fmtPct(p.percentual) })) : [{ dias: '30', percentual: '100' }],
+    prazo ? prazo.parcelas.map((p) => ({ dias: String(p.dias), percentual: fmtPct(p.percentual), ref: refDe(p) })) : [{ dias: '30', percentual: '100', ref: 'reserva' }],
   );
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  // Conferência linha a linha: dias inteiros e crescentes (sem repetir), % maior que zero, soma 100%.
-  const parcelas = linhas.map((l) => ({ dias: Math.trunc(lerNum(l.dias)), percentual: Math.round(lerNum(l.percentual) * 100) / 100 }));
-  const diasRuim = parcelas.map((p, i) => l_vazio(linhas[i].dias) || !Number.isFinite(p.dias) || p.dias < 0 || (i > 0 && p.dias <= parcelas[i - 1].dias));
+  // Conferência linha a linha (mesmas regras do banco): primeiro as parcelas após a pré-reserva,
+  // com dias crescentes; depois as antes do evento, com dias decrescentes. % > 0, soma 100%.
+  const parcelas = linhas.map((l) => ({ dias: Math.trunc(lerNum(l.dias)), percentual: Math.round(lerNum(l.percentual) * 100) / 100, ref: l.ref }));
+  const foraDeOrdem = parcelas.map((p, i) => i > 0 && p.ref === 'reserva' && parcelas[i - 1].ref === 'evento');
+  const diasRuim = parcelas.map((p, i) => {
+    if (l_vazio(linhas[i].dias) || !Number.isFinite(p.dias) || p.dias < 0 || foraDeOrdem[i]) return true;
+    const ant = parcelas[i - 1];
+    if (!ant || ant.ref !== p.ref) return false;
+    return p.ref === 'reserva' ? p.dias <= ant.dias : p.dias >= ant.dias;
+  });
   const pctRuim = parcelas.map((p, i) => l_vazio(linhas[i].percentual) || !(p.percentual > 0));
   const soma = parcelas.reduce((s, p) => s + (p.percentual || 0), 0);
   const somaOk = Math.abs(soma - 100) <= 0.01;
@@ -176,18 +172,23 @@ function EditorPrazo(props: { prazo: PrazoPagamento | null; outros: string[]; pr
   const nome = linhasOk ? nomePrazo(parcelas) : '';
   const repetido = !!nome && outros.some((o) => o.toLowerCase() === nome.toLowerCase());
   const pronto = linhasOk && somaOk && !repetido;
-  const motivo = diasRuim.some(Boolean)
-    ? 'Os dias precisam ser crescentes, sem repetir (0 = na hora da pré-reserva).'
-    : pctRuim.some(Boolean)
-      ? 'Cada parcela precisa de um % maior que zero. Use "Dividir igualmente".'
-      : !somaOk
-        ? `Os percentuais somam ${fmtPct(soma)}%; precisam somar 100%.`
-        : repetido
-          ? 'Já existe um prazo igual a este.'
-          : null;
+  const motivo = foraDeOrdem.some(Boolean)
+    ? 'As parcelas após a pré-reserva vêm primeiro; as antes do evento ficam no fim.'
+    : diasRuim.some(Boolean)
+      ? 'Após a pré-reserva: dias crescentes (0 = entrada, na hora). Antes do evento: dias decrescentes (ex.: 30 e depois 15; 0 = no dia).'
+      : pctRuim.some(Boolean)
+        ? 'Cada parcela precisa de um % maior que zero. Use "Dividir igualmente".'
+        : !somaOk
+          ? `Os percentuais somam ${fmtPct(soma)}%; precisam somar 100%.`
+          : repetido
+            ? 'Já existe um prazo igual a este.'
+            : null;
 
-  function mudar(i: number, campo: keyof Linha, valor: string) {
+  function mudar(i: number, campo: 'dias' | 'percentual', valor: string) {
     setLinhas((ls) => ls.map((l, k) => (k === i ? { ...l, [campo]: valor.replace(campo === 'dias' ? /\D/g : /[^\d,.]/g, '') } : l)));
+  }
+  function mudarRef(i: number, ref: RefPrazo) {
+    setLinhas((ls) => ls.map((l, k) => (k === i ? { ...l, ref } : l)));
   }
 
   async function salvar(e: FormEvent) {
@@ -208,7 +209,7 @@ function EditorPrazo(props: { prazo: PrazoPagamento | null; outros: string[]; pr
   return (
     <>
       <div className="scrim" onClick={ocupado ? undefined : onFechar} />
-      <form className="modal estreito" role="dialog" aria-modal="true" aria-label={prazo ? 'Editar prazo' : 'Novo prazo'} onSubmit={salvar}>
+      <form className="modal" role="dialog" aria-modal="true" aria-label={prazo ? 'Editar prazo' : 'Novo prazo'} onSubmit={salvar}>
         <div className="m-head">
           <h2>{prazo ? 'Editar prazo' : 'Novo prazo'}</h2>
           <button type="button" className="ib" onClick={onFechar} aria-label="Fechar" disabled={ocupado}>
@@ -228,7 +229,8 @@ function EditorPrazo(props: { prazo: PrazoPagamento | null; outros: string[]; pr
               <thead>
                 <tr>
                   <th>Nº</th>
-                  <th>Dias após a pré-reserva</th>
+                  <th>Contar</th>
+                  <th>Dias</th>
                   <th>% do valor</th>
                   <th aria-label="Remover" />
                 </tr>
@@ -237,6 +239,12 @@ function EditorPrazo(props: { prazo: PrazoPagamento | null; outros: string[]; pr
                 {linhas.map((l, i) => (
                   <tr key={i}>
                     <td>{i + 1}</td>
+                    <td>
+                      <select className="inp" value={l.ref} aria-label={`De onde contam os dias da parcela ${i + 1}`} onChange={(e) => mudarRef(i, e.target.value as RefPrazo)}>
+                        <option value="reserva">após a pré-reserva</option>
+                        <option value="evento">antes do evento</option>
+                      </select>
+                    </td>
                     <td>
                       <input
                         className={`inp${diasRuim[i] ? ' invalido' : ''}`}
@@ -278,18 +286,21 @@ function EditorPrazo(props: { prazo: PrazoPagamento | null; outros: string[]; pr
                 type="button"
                 className="btn peq"
                 disabled={linhas.length >= 36}
-                onClick={() => setLinhas((ls) => dividir([...ls, { dias: String((lerNum(ls[ls.length - 1]?.dias) || 0) + 30), percentual: '' }]))}
-                title="Acrescenta uma parcela 30 dias depois da última e redivide os percentuais"
+                onClick={() => setLinhas((ls) => dividir([...ls, proxima(ls)]))}
+                title="Acrescenta uma parcela depois da última e redivide os percentuais"
               >
                 <Icone nome="plus" tamanho={16} />
                 Parcela
               </button>
-              <button type="button" className="btn peq" onClick={() => setLinhas(dividir)} title="Antecipado (0 dias) fica como está; o resto é dividido igualmente">
+              <button type="button" className="btn peq" onClick={() => setLinhas(dividir)} title="Entrada (0 dias após a pré-reserva) fica como está; o resto é dividido igualmente">
                 Dividir igualmente
               </button>
               <span className={`soma-pct${somaOk ? ' ok' : ''}`}>Soma: {fmtPct(soma)}%</span>
             </div>
-            <p className="note">0 dias = paga na hora da pré-reserva (sinal/antecipado). Ao incluir ou tirar parcela, os % são redivididos.</p>
+            <p className="note">
+              Após a pré-reserva: 0 dias = entrada, paga na hora. Antes do evento: os dias contam para trás a partir do início do evento (0 = no dia). Ex.: 30% após a
+              pré-reserva com 0 dias + 70% antes do evento com 15 dias. Ao incluir ou tirar parcela, os % são redivididos.
+            </p>
           </div>
           {(motivo || erro) && (
             <p className="msg-erro" role="alert">
