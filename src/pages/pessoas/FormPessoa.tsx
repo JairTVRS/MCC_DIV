@@ -97,7 +97,7 @@ export function FormPessoa({ pessoa, nomeInicial, tipoInicial, onFechar, onSalvo
   return (
     <>
       <div className="scrim alto" onClick={ocupado ? undefined : onFechar} />
-      <form className="modal estreito alto" role="dialog" aria-modal="true" aria-label={nova ? 'Nova pessoa' : 'Pessoa'} onSubmit={salvar}>
+      <form className="modal medio alto" role="dialog" aria-modal="true" aria-label={nova ? 'Nova pessoa' : 'Pessoa'} onSubmit={salvar}>
         <div className="m-head">
           <h2>{nova ? 'Nova pessoa' : 'Pessoa'}</h2>
           {inativa && <span className="tag">Inativa</span>}

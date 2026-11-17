@@ -61,6 +61,8 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 
 ## Situação atual
 
+- **v1.1.1** (16/11/2026, pedido do Jair) — Formulário da pessoa mais largo: classe `.modal.medio` (até 1200px, centralizada na área de conteúdo sem o menu lateral de 236px; no celular volta ao centro da tela). A `.modal.estreito` (440px) continua nas outras janelas. Migração **020** (`020_versao_1_1_1.sql`) só registra a versão nas Novidades.
+
 - **v1.1.0** (16/11/2026, pedido do Jair) — Movimento e Paróquia na pessoa: migração **019** (`019_movimentos_paroquias.sql`), Configurações > Movimentos e Paróquias, cadastro rápido no formulário da pessoa, filtros na Agenda, colunas/filtros no Relatório. Migração 019 aplicada no Supabase; testado no localhost pelo Jair (movimento "MCC", paróquia "Bom Jesus"); publicada (push). Migrações 001 a 019 aplicadas.
 - **v1.0.0** — Etapas 9, 10 e 11 juntas (decisão do Jair), publicada em 15/11/2026: Lista / Relatório (`src/pages/lista/`: abas Reservas e Parcelas, filtros, atalhos de período, colunas à escolha lembradas no aparelho, ordenação, somas, CSV com `;`/vírgula decimal/BOM, clique abre o card), histórico geral na engrenagem (`src/pages/historico/`, aba Histórico com `logs.geral`; a engrenagem aparece também para quem só tem `logs.geral` ou a lixeira), relógio no usuário, no grupo e na pessoa (`JanelaHistorico`), pessoas inativadas (sem excluir), lixeira com busca, pontinho na versão quando há novidade não vista.
 - v0.8.0 — Etapa 8 concluída e publicada (15/11/2026): migrações 015 (categorias de anexo, contadores, `minhas_notificacoes`) e 016 (comprovante em uso só sai pela aba Pagamento), abas Anexos e Comentários da reserva, sino no topo, contadores no card, Configurações > Categorias de anexo.
@@ -72,7 +74,7 @@ Plano de referência: **Plano-Agenda-Locacoes v1.8** (https://claude.ai/artifact
 - **Onde paramos (15/11/2026, fim do dia):** v1.0.0 no ar (mcc-div.pages.dev), conferida em produção pelo Jair; migrações 001 a 018 aplicadas; as 11 etapas do plano concluídas. Checklist de validação (44 itens OK): https://claude.ai/artifact/QeirJpBc5STYikdqJ6YmJj.
 - **Pendências para a retomada (uso real):**
   1. **Backup do banco** (prioridade): o Supabase gratuito não tem backup restaurável ("Last backup: No backups"). Decidir entre plano Pro (backup diário) ou rotina de exportação; o Claude ofereceu montar uma rotina simples.
-  2. **Limpar dados de teste** em produção: reservas "MCC DIV" de 15/11 e 20/11, comentários "teste", reserva cancelada na lixeira, anexos de teste; inativar a pessoa "MCC DIV" se não for cliente.
+  2. **Limpar dados de teste** em produção: reservas "MCC DIV" de 15/11 e 20/11, comentários "teste", reserva cancelada na lixeira, anexos de teste; inativar a pessoa "MCC DIV" (confirmado pelo Jair: é só teste; os usuários cadastram as pessoas reais). Movimento "MCC" e paróquia "Bom Jesus" foram criados no teste da v1.1.0: se não forem usar, desativar (o app não apaga) ou apagar por SQL enquanto nenhuma pessoa usar.
   3. **Alerta de vencimento no sino** (pg_cron 07:00): ainda não visto em produção; conferir quando houver parcela em aberto vencendo em 3 dias.
   4. **Revisar permissões dos grupos** (Gestor vê Histórico geral; só Administrador inativa pessoas; quem exporta CSV).
 - Servidor local: o Claude sobe e mantém o `npm run dev` na porta 5173 (a 5174 quebra o login Google).

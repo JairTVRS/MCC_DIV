@@ -591,6 +591,9 @@ textarea.inp { resize: vertical; min-height: 72px; }
 
 /* Janelas: perfil e foto */
 .modal.estreito { width: min(440px, calc(100% - 32px)); }
+/* Formulário da pessoa: largo, para o cadastro rápido de movimento/paróquia caber na coluna (pedido do Jair).
+   Centralizado na área de conteúdo, sem contar o menu lateral (236px); no celular o menu some e volta ao centro da tela. */
+.modal.medio { left: calc(50% + 118px); width: min(1200px, calc(100% - 236px - 32px)); }
 .m-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 18px; border-top: 1px solid var(--line2); }
 .perfil-topo { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
 .dados { margin: 0; display: flex; flex-direction: column; border: 1px solid var(--line2); border-radius: 10px; }
@@ -617,6 +620,7 @@ textarea.inp { resize: vertical; min-height: 72px; }
 
 @media (max-width: 760px) {
   .app { grid-template-columns: minmax(0, 1fr); }
+  .modal.medio { left: 50%; width: min(1200px, calc(100% - 32px)); }
   .side { position: fixed; inset: 0 auto 0 0; width: 260px; z-index: 45; transform: translateX(-100%); transition: transform 0.2s; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   .side.open { transform: none; }
   .hamb { display: flex; }
