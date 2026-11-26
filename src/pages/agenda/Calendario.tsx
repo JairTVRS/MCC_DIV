@@ -136,9 +136,11 @@ export const Calendario = forwardRef<FullCalendar, Props>(function Calendario(pr
       navLinkDayClick={(dia) => onIrParaDia(dia)}
       editable={editavel}
       eventResizableFromStart={false}
+      // Sempre faixa com a cor do status. Tem que ficar no calendário inteiro: o FullCalendar ignora
+      // eventDisplay dentro de `views`, e no Mês a reserva de um dia só virava "bolinha" sem cor.
+      eventDisplay="block"
       views={{
         dayGridMonth: {
-          eventDisplay: 'block',
           dayMaxEvents: 3,
           eventDurationEditable: false, // no mês, só arrastar entre dias (o horário fica)
           fixedWeekCount: false,
